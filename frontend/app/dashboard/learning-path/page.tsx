@@ -64,7 +64,7 @@ export default function LearningPathPage() {
       .catch(() => {});
   }, []);
 
-  const handleComplete = async (itemId: str) => {
+  const handleComplete = async (itemId: string) => {
     try {
       await fetch(`/api/recommendations/${itemId}/complete`, { method: 'POST' });
       setLearningPath((prev) =>

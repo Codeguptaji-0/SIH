@@ -14,10 +14,10 @@ app = FastAPI(
 )
 
 # CORS setup
-origins = [o.strip() for o in settings.CORS_ORIGINS.split(",")]
+origins = [o.strip() for o in settings.CORS_ORIGINS.split(",") if o.strip()]
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"], # Permissive for hackathon local dev
+    allow_origins=origins if origins else ["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

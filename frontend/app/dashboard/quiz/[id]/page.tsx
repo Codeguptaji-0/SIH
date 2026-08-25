@@ -205,7 +205,7 @@ export default function AdaptiveQuizPage() {
             </h2>
 
             <div className="space-y-3">
-              {currentQ?.options.map((opt: str, idx: number) => {
+              {currentQ?.options.map((opt: string, idx: number) => {
                 const isSelected = selectedOpt === idx;
                 return (
                   <button

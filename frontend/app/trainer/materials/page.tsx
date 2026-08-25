@@ -37,7 +37,7 @@ export default function UploadMaterialsPage() {
     } catch (err) {
       setUploadResult({
         id: 'doc-demo-99',
-        title: file.filename || file.name,
+        title: file.name,
         page_count: 8,
         chunks_extracted: 12,
         status: 'READY'

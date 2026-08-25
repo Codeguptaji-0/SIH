@@ -2,9 +2,12 @@ import os
 from typing import Dict, List, Any
 
 try:
-    import fitz # PyMuPDF
+    import pymupdf as fitz
 except ImportError:
-    fitz = None
+    try:
+        import fitz
+    except ImportError:
+        fitz = None
 
 class DocumentProcessor:
     @staticmethod
