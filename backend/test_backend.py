@@ -37,10 +37,13 @@ def run_tests():
     assert official_data.get("current_assignment") is not None, "Missing current_assignment in profile response"
     print("[OK] Priority 4: Competency Profile contains required job_role, assignment, and education fields.")
 
-    # 3. Profile endpoint
+    # 3. Profile endpoint RBAC check (Unauthenticated -> 401, Authenticated -> 200)
+    res_prof_unauth = client.get("/api/profile/me")
+    assert res_prof_unauth.status_code == 401, f"Expected 401 for unauthenticated profile call, got: {res_prof_unauth.status_code}"
+    
     res = client.get("/api/profile/me", headers={"Authorization": f"Bearer {official_token}"})
     assert res.status_code == 200, f"Profile endpoint failed: {res.text}"
-    print("[OK] /api/profile/me passed.")
+    print("[OK] /api/profile/me RBAC passed (401 unauthenticated / 200 authenticated).")
 
     # 4. Priority 1 & 5 Check: RBAC Enforcement on /api/admin/analytics
     # Unauthorized call without token -> should return 401

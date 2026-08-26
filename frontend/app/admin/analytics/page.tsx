@@ -5,7 +5,7 @@ import { Navbar } from '@/components/Navbar';
 import { Sidebar } from '@/components/Sidebar';
 import { BarChart3, Users, Award, AlertTriangle, TrendingUp, TrendingDown, Minus, Shield } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
-import { useAuth } from '../context/AuthContext';
+import { useAuth } from '../../context/AuthContext';
 
 export default function AdminAnalyticsPage() {
   const [analytics, setAnalytics] = useState<any>(null);
