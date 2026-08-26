@@ -31,12 +31,26 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -
         encoded_payload = base64.urlsafe_b64encode(payload_str.encode()).decode().rstrip("=")
         return f"demo_jwt.{encoded_payload}.signature"
 
+# In-memory token revocation blacklist (Note: In a distributed production deployment, Redis would be used for token blacklisting)
+REVOKED_TOKENS = set()
+
+def revoke_token(token: str):
+    if not token:
+        return
+    token = token.strip()
+    if token.lower().startswith("bearer "):
+        token = token[7:].strip()
+    REVOKED_TOKENS.add(token)
+
 def decode_access_token(token: str) -> Optional[dict]:
     if not token:
         return None
     token = token.strip()
     if token.lower().startswith("bearer "):
         token = token[7:].strip()
+
+    if token in REVOKED_TOKENS:
+        return None
         
     if HAS_JOSE:
         try:

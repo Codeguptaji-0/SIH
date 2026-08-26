@@ -62,9 +62,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return null;
   };
 
-  const logout = () => {
+  const logout = async () => {
+    if (token) {
+      try {
+        await fetch('http://localhost:8000/api/auth/logout', {
+          method: 'POST',
+          headers: getAuthHeaders(),
+        });
+      } catch (e) {}
+    }
     setUser(null);
     setToken(null);
+    if (typeof window !== 'undefined') {
+      window.location.href = '/login';
+    }
   };
 
   const getAuthHeaders = (): Record<string, string> => {

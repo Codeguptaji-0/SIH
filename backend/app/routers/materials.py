@@ -6,13 +6,19 @@ from app.database import get_db
 from app.models.models import Document, DocumentChunk, User
 from app.document_processing.processor import DocumentProcessor
 
+from app.auth.dependencies import require_role
+
 router = APIRouter(prefix="/api/materials", tags=["Learning Materials"])
 
 UPLOAD_DIR = "./uploaded_materials"
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 
 @router.post("/upload")
-async def upload_material(file: UploadFile = File(...), user_id: str = "u-trainer-001", db: Session = Depends(get_db)):
+async def upload_material(
+    file: UploadFile = File(...),
+    db: Session = Depends(get_db),
+    user=Depends(require_role("TRAINER", "ADMIN"))
+):
     if not file.filename.endswith(".pdf") and not file.filename.endswith(".txt"):
         raise HTTPException(status_code=400, detail="Only PDF or TXT documents are supported.")
 
@@ -38,7 +44,7 @@ async def upload_material(file: UploadFile = File(...), user_id: str = "u-traine
         id=file_id,
         title=file.filename.replace(".pdf", "").replace("_", " ").title(),
         filename=file.filename,
-        uploaded_by=user_id,
+        uploaded_by=user.id,
         department="MoSPI DIID",
         page_count=proc_result["page_count"],
         status="READY",
@@ -68,7 +74,10 @@ async def upload_material(file: UploadFile = File(...), user_id: str = "u-traine
     }
 
 @router.get("")
-def list_materials(db: Session = Depends(get_db)):
+def list_materials(
+    db: Session = Depends(get_db),
+    user=Depends(require_role("OFFICIAL", "TRAINER", "ADMIN"))
+):
     docs = db.query(Document).all()
     return [{
         "id": d.id,

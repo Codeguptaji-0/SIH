@@ -3,12 +3,17 @@ from sqlalchemy.orm import Session
 from app.database import get_db
 from app.models.models import QuizAttempt, CompetencyResult, Competency
 
+from app.auth.dependencies import require_role
+
 router = APIRouter(prefix="/api/competency", tags=["Competency"])
 
 @router.get("/me")
-def get_my_competency(user_id: str = "u-official-001", db: Session = Depends(get_db)):
-    # Get latest attempt
-    latest_attempt = db.query(QuizAttempt).filter(QuizAttempt.user_id == user_id).order_by(QuizAttempt.completed_at.desc()).first()
+def get_my_competency(
+    db: Session = Depends(get_db),
+    user=Depends(require_role("OFFICIAL", "ADMIN"))
+):
+    # Get latest attempt for authenticated user
+    latest_attempt = db.query(QuizAttempt).filter(QuizAttempt.user_id == user.id).order_by(QuizAttempt.completed_at.desc()).first()
     
     if not latest_attempt:
         latest_attempt = db.query(QuizAttempt).order_by(QuizAttempt.completed_at.desc()).first()
@@ -40,3 +45,4 @@ def get_my_competency(user_id: str = "u-official-001", db: Session = Depends(get
         "completed_at": latest_attempt.completed_at,
         "competencies": formatted
     }
+

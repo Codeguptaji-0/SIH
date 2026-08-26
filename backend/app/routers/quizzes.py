@@ -9,10 +9,16 @@ from app.schemas.schemas import QuizGenerateRequest, QuizSubmitRequest
 from app.ai.provider import get_ai_provider
 from app.competency.engine import CompetencyEngine
 
+from app.auth.dependencies import require_role
+
 router = APIRouter(prefix="/api/quizzes", tags=["Quizzes"])
 
 @router.post("/generate")
-def generate_quiz(request: QuizGenerateRequest, db: Session = Depends(get_db)):
+def generate_quiz(
+    request: QuizGenerateRequest,
+    db: Session = Depends(get_db),
+    user=Depends(require_role("OFFICIAL", "ADMIN"))
+):
     doc = None
     chunks_text = []
 
@@ -70,7 +76,10 @@ def generate_quiz(request: QuizGenerateRequest, db: Session = Depends(get_db)):
     }
 
 @router.get("/active")
-def get_active_quiz(user_id: str = "u-official-001", db: Session = Depends(get_db)):
+def get_active_quiz(
+    db: Session = Depends(get_db),
+    user=Depends(require_role("OFFICIAL", "ADMIN"))
+):
     # Fetch questions available for quiz
     questions = db.query(Question).filter(Question.review_status == "APPROVED").all()
     
@@ -100,7 +109,12 @@ def get_active_quiz(user_id: str = "u-official-001", db: Session = Depends(get_d
     }
 
 @router.post("/{quiz_id}/submit")
-def submit_quiz(quiz_id: str, request: QuizSubmitRequest, user_id: str = "u-official-001", db: Session = Depends(get_db)):
+def submit_quiz(
+    quiz_id: str,
+    request: QuizSubmitRequest,
+    db: Session = Depends(get_db),
+    user=Depends(require_role("OFFICIAL", "ADMIN"))
+):
     question_ids = [ans.question_id for ans in request.answers]
     db_questions = db.query(Question).filter(Question.id.in_(question_ids)).all()
     
@@ -124,7 +138,7 @@ def submit_quiz(quiz_id: str, request: QuizSubmitRequest, user_id: str = "u-offi
     # Save Attempt
     attempt = QuizAttempt(
         id=str(uuid.uuid4()),
-        user_id=user_id,
+        user_id=user.id,
         total_questions=eval_result["total_questions"],
         correct_answers=eval_result["correct_answers"],
         overall_score=eval_result["overall_score"]
@@ -152,3 +166,4 @@ def submit_quiz(quiz_id: str, request: QuizSubmitRequest, user_id: str = "u-offi
         "correct_answers": attempt.correct_answers,
         "results": eval_result["competency_results"]
     }
+

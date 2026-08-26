@@ -12,6 +12,7 @@
     "navReview": "MCQ Review",
     "navAnalytics": "Admin Analytics",
     "navProfile": "My Profile",
+    "navVirtualLab": "Python Virtual Lab",
     "switchLanguage": "हिन्दी",
     "logout": "Logout",
     "welcomeUser": "Welcome back",
@@ -32,7 +33,19 @@
     "domainReadiness": "4-Domain Competency Readiness",
     "trendingUp": "Trending Up",
     "trendingDown": "Trending Down",
-    "stable": "Stable"
+    "stable": "Stable",
+    "overviewHeader": "MoSPI Competency Dashboard",
+    "overallProficiency": "Overall Proficiency",
+    "assessmentsTaken": "Assessments Taken",
+    "criticalGapsCount": "Critical Gaps Identified",
+    "assignedCourses": "Assigned Courses",
+    "startAssessment": "Start Adaptive Assessment",
+    "viewLearningPath": "View Personalized Roadmap",
+    "virtualLabTitle": "In-Browser Python Virtual Lab",
+    "virtualLabSubtitle": "Interactive WebAssembly sandbox for practicing official statistics & data science code exercises.",
+    "runCode": "Run Python Code",
+    "runningCode": "Executing in Pyodide Wasm...",
+    "stdoutOutput": "Terminal Output / Log Console"
   },
   "hi": {
     "appTitle": "स्किलसेतु",
@@ -47,6 +60,7 @@
     "navReview": "एमसीक्यू समीक्षा",
     "navAnalytics": "प्रशासनिक विश्लेषण",
     "navProfile": "मेरी प्रोफ़ाइल",
+    "navVirtualLab": "पायथन वर्चुअल लैब",
     "switchLanguage": "English",
     "logout": "लॉगआउट",
     "welcomeUser": "पुनः स्वागत है",
@@ -67,6 +81,18 @@
     "domainReadiness": "4-डोमेन क्षमता तत्परता",
     "trendingUp": "सुधार की ओर",
     "trendingDown": "समीक्षा आवश्यक",
-    "stable": "स्थिर"
+    "stable": "स्थिर",
+    "overviewHeader": "एमओएसपीआई क्षमता डैशबोर्ड",
+    "overallProficiency": "कुल दक्षता",
+    "assessmentsTaken": "पूर्ण किए गए मूल्यांकन",
+    "criticalGapsCount": "चिह्नित गंभीर अंतर",
+    "assignedCourses": "आवंटित पाठ्यक्रम",
+    "startAssessment": "अनुकूली मूल्यांकन प्रारंभ करें",
+    "viewLearningPath": "व्यक्तिगत मार्ग देखें",
+    "virtualLabTitle": "इन-ब्राउज़र पायथन वर्चुअल लैब",
+    "virtualLabSubtitle": "आधिकारिक सांख्यिकी एवं डेटा विज्ञान कोड अभ्यास के लिए इंटरएक्टिव वेबअसेंबली सैंडबॉक्स।",
+    "runCode": "पायथन कोड चलाएं",
+    "runningCode": "निष्पादित हो रहा है...",
+    "stdoutOutput": "टर्मिनल आउटपुट / लॉग कंसोल"
   }
 }

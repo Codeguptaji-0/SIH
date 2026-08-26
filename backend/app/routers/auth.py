@@ -62,6 +62,25 @@ def login(request: LoginRequest, db: Session = Depends(get_db)):
         token_type="bearer"
     )
 
+@router.post("/refresh")
+def refresh_token(authorization: str = Header(None), db: Session = Depends(get_db)):
+    if not authorization:
+        raise HTTPException(status_code=401, detail="Missing Authorization header")
+    payload = decode_access_token(authorization)
+    if not payload or not payload.get("sub"):
+        raise HTTPException(status_code=401, detail="Invalid or expired token for refresh")
+    
+    user = db.query(User).filter(User.id == payload["sub"]).first()
+    if not user:
+        raise HTTPException(status_code=401, detail="User not found")
+        
+    new_token = create_access_token({
+        "sub": user.id,
+        "email": user.email,
+        "role": user.role
+    })
+    return {"access_token": new_token, "token_type": "bearer"}
+
 @router.get("/me", response_model=UserResponse)
 def get_current_user(
     authorization: str = Header(None),
@@ -74,5 +93,13 @@ def get_current_user(
             user = db.query(User).filter(User.id == payload["sub"]).first()
             if user:
                 email = user.email
-    return login(LoginRequest(email=email), db)
+@router.post("/logout")
+def logout(authorization: str = Header(None)):
+    if authorization:
+        from app.auth.dependencies import revoke_token
+        revoke_token(authorization)
+    return {"status": "success", "message": "Successfully logged out and token revoked"}
+
+
+
 

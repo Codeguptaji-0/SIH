@@ -8,10 +8,13 @@ import { CompetencyRadar } from '@/components/CompetencyRadar';
 import { VirtualAssistantWidget } from '@/components/VirtualAssistantWidget';
 import { Award, AlertTriangle, CheckCircle, ArrowRight, BookOpen, Clock, RefreshCw } from 'lucide-react';
 
+import { useLanguage } from '../context/LanguageContext';
+
 export default function OfficialDashboard() {
   const [profile, setProfile] = useState<any>(null);
   const [competencies, setCompetencies] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const { t } = useLanguage();
 
   useEffect(() => {
     fetch('/api/profile/me')
@@ -62,20 +65,20 @@ export default function OfficialDashboard() {
           <div className="bg-gradient-to-r from-slate-900 via-blue-950 to-slate-900 text-white p-6 rounded-3xl shadow-md border border-slate-800 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
             <div>
               <div className="text-xs font-mono text-blue-400 font-bold uppercase tracking-wider mb-1">
-                MoSPI Capacity Building Dashboard
+                {t('overviewHeader')}
               </div>
               <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight">
-                Good morning, {profile?.full_name || 'Ananya Sharma'}
+                {t('welcomeUser')}, {profile?.full_name || 'Ananya Sharma'}
               </h1>
               <p className="text-xs text-slate-300 mt-1">
-                Designation: <span className="font-semibold text-white">{profile?.designation || 'Statistical Officer'}</span> • Department: <span className="font-semibold text-white">{profile?.department || 'MoSPI DIID'}</span>
+                {t('jobRole')}: <span className="font-semibold text-white">{profile?.designation || 'Statistical Officer'}</span> • Department: <span className="font-semibold text-white">{profile?.department || 'MoSPI DIID'}</span>
               </p>
             </div>
             <Link
               href="/dashboard/quiz/active-quiz-session-001"
               className="bg-blue-600 hover:bg-blue-500 text-white font-bold px-6 py-3 rounded-xl shadow-lg shadow-blue-600/30 text-xs flex items-center gap-2 transition-all"
             >
-              Take Competency Assessment <ArrowRight className="w-4 h-4" />
+              {t('startAssessment')} <ArrowRight className="w-4 h-4" />
             </Link>
           </div>
 

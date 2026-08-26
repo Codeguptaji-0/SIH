@@ -59,12 +59,29 @@ def run_tests():
     print("[OK] Priority 1 & 5: Backend RBAC enforcement & JWT token verification passed (401/403/200).")
     print("[OK] Priority 3: Admin Predictive Analytics contains DB domain readiness & 7-day trend signals.")
 
-    # 5. Trainer RBAC check
+    # 5. Trainer & Materials RBAC check
     res_trainer = client.get("/api/trainer/questions", headers={"Authorization": f"Bearer {trainer_token}"})
     assert res_trainer.status_code == 200, f"Trainer endpoint failed: {res_trainer.text}"
-    print("[OK] Trainer RBAC check passed.")
 
-    # 6. Priority 2 Check: Dynamic sentence extraction in MockAIProvider
+    res_mat = client.get("/api/materials", headers={"Authorization": f"Bearer {official_token}"})
+    assert res_mat.status_code == 200, f"Materials list failed: {res_mat.text}"
+    print("[OK] Materials & Trainer RBAC checks passed.")
+
+    # 6. Quizzes, Competency, Recommendations & Assistant RBAC checks
+    res_quiz = client.get("/api/quizzes/active", headers={"Authorization": f"Bearer {official_token}"})
+    assert res_quiz.status_code == 200, f"Active quiz failed: {res_quiz.text}"
+
+    res_comp = client.get("/api/competency/me", headers={"Authorization": f"Bearer {official_token}"})
+    assert res_comp.status_code == 200, f"Competency me failed: {res_comp.text}"
+
+    res_rec = client.get("/api/recommendations", headers={"Authorization": f"Bearer {official_token}"})
+    assert res_rec.status_code == 200, f"Recommendations failed: {res_rec.text}"
+
+    res_ast = client.post("/api/assistant/chat", json={"message": "sampling"}, headers={"Authorization": f"Bearer {official_token}"})
+    assert res_ast.status_code == 200, f"Assistant failed: {res_ast.text}"
+    print("[OK] Full RBAC Router Coverage Verified across Materials, Quizzes, Competency, Recommendations, and Assistant.")
+
+    # 7. Priority 2 Check: Dynamic sentence extraction in MockAIProvider
     mock_ai = MockAIProvider()
     sample_text = [
         "The National Sample Survey 80th round collects data on household consumer expenditure across 12000 sample blocks in 2026.",
@@ -75,8 +92,9 @@ def run_tests():
     assert "National Sample Survey" in mcqs[0]["question_text"] or "National Sample Survey" in mcqs[0]["explanation"], "MCQ failed to reflect uploaded content"
     print("[OK] Priority 2: MockAIProvider dynamically generates questions reflecting uploaded text content.")
 
-    print("\nAll Core Backend API Endpoints & Priority 1-6 Enhancements Verified Successfully!")
+    print("\nAll Core Backend API Endpoints & Gap Closure Enhancements Verified Successfully!")
 
 if __name__ == "__main__":
     run_tests()
+
 

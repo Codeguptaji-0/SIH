@@ -3,7 +3,7 @@ from app.services.igot_service import IGOTService
 
 class RecommendationGenerator:
     @staticmethod
-    def generate_learning_path(competency_results: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    async def generate_learning_path(competency_results: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
         """
         Sorts competency results by priority (Critical Gaps first),
         queries IGOTService catalog for matching courses, and builds personalized roadmap.
@@ -24,7 +24,7 @@ class RecommendationGenerator:
                 continue
 
             priority_label = "High" if status == "critical_gap" else ("Medium" if status == "needs_improvement" else "Low")
-            matching_courses = IGOTService.search_courses(comp_name)
+            matching_courses = await IGOTService.search_courses(comp_name)
 
             for course in matching_courses:
                 if course["course_id"] not in seen_course_ids:

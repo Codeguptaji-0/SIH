@@ -5,11 +5,16 @@ from app.database import get_db
 from app.models.models import QuizAttempt, CompetencyResult, Competency, LearningPath
 from app.recommendations.generator import RecommendationGenerator
 
+from app.auth.dependencies import require_role
+
 router = APIRouter(prefix="/api/recommendations", tags=["Recommendations"])
 
 @router.post("/generate")
-def generate_recommendations(user_id: str = "u-official-001", db: Session = Depends(get_db)):
-    latest_attempt = db.query(QuizAttempt).filter(QuizAttempt.user_id == user_id).order_by(QuizAttempt.completed_at.desc()).first()
+async def generate_recommendations(
+    db: Session = Depends(get_db),
+    user=Depends(require_role("OFFICIAL", "ADMIN"))
+):
+    latest_attempt = db.query(QuizAttempt).filter(QuizAttempt.user_id == user.id).order_by(QuizAttempt.completed_at.desc()).first()
     
     if not latest_attempt:
         latest_attempt = db.query(QuizAttempt).order_by(QuizAttempt.completed_at.desc()).first()
@@ -27,16 +32,16 @@ def generate_recommendations(user_id: str = "u-official-001", db: Session = Depe
                 "priority": r.priority
             })
 
-    raw_path = RecommendationGenerator.generate_learning_path(results)
+    raw_path = await RecommendationGenerator.generate_learning_path(results)
 
     # Save generated learning path items to database
-    db.query(LearningPath).filter(LearningPath.user_id == user_id).delete()
+    db.query(LearningPath).filter(LearningPath.user_id == user.id).delete()
 
     saved_items = []
     for item in raw_path:
         lp = LearningPath(
             id=str(uuid.uuid4()),
-            user_id=user_id,
+            user_id=user.id,
             attempt_id=latest_attempt.id if latest_attempt else None,
             course_id=item["course_id"],
             course_title=item["course_title"],
@@ -66,11 +71,14 @@ def generate_recommendations(user_id: str = "u-official-001", db: Session = Depe
     }
 
 @router.get("")
-def get_learning_path(user_id: str = "u-official-001", db: Session = Depends(get_db)):
-    paths = db.query(LearningPath).filter(LearningPath.user_id == user_id).all()
+async def get_learning_path(
+    db: Session = Depends(get_db),
+    user=Depends(require_role("OFFICIAL", "ADMIN"))
+):
+    paths = db.query(LearningPath).filter(LearningPath.user_id == user.id).all()
     if not paths:
         # Generate initial path if empty
-        return generate_recommendations(user_id, db)
+        return await generate_recommendations(db=db, user=user)
 
     result = []
     for p in paths:
@@ -89,7 +97,11 @@ def get_learning_path(user_id: str = "u-official-001", db: Session = Depends(get
     return {"learning_path": result}
 
 @router.post("/{item_id}/complete")
-def complete_learning_item(item_id: str, db: Session = Depends(get_db)):
+def complete_learning_item(
+    item_id: str,
+    db: Session = Depends(get_db),
+    user=Depends(require_role("OFFICIAL", "ADMIN"))
+):
     item = db.query(LearningPath).filter(LearningPath.id == item_id).first()
     if not item:
         item = db.query(LearningPath).first()
@@ -99,3 +111,4 @@ def complete_learning_item(item_id: str, db: Session = Depends(get_db)):
         db.commit()
 
     return {"status": "success", "message": "Course marked as completed. Progress score updated."}
+

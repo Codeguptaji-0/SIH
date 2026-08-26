@@ -13,7 +13,8 @@ import {
   CheckSquare, 
   BarChart3, 
   FileCheck,
-  HelpCircle
+  HelpCircle,
+  Code2
 } from 'lucide-react';
 import { useLanguage } from '../app/context/LanguageContext';
 
@@ -31,6 +32,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ role = 'OFFICIAL' }) => {
     { label: t('navAssessment'), href: '/dashboard/assessment', icon: Award },
     { label: t('navLearningPath'), href: '/dashboard/learning-path', icon: BookOpen },
     { label: t('navProgress'), href: '/dashboard/progress', icon: TrendingUp },
+    { label: t('navVirtualLab'), href: '/dashboard/virtual-lab', icon: Code2 },
   ];
 
   const trainerNav = [
