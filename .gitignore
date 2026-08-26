@@ -29,4 +29,5 @@ Thumbs.db
 .env.production.local
 
 # SQLite database local binary file
+*.db
 uploaded_materials/

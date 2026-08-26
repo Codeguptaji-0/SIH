@@ -13,11 +13,21 @@ class UserResponse(BaseModel):
     full_name: str
     designation: str
     department: str
+    job_role: Optional[str] = None
+    current_assignment: Optional[str] = None
+    educational_qualification: Optional[str] = None
+    previous_trainings: List[str] = []
+    access_token: Optional[str] = None
+    token_type: Optional[str] = "bearer"
 
 class ProfileUpdate(BaseModel):
     full_name: Optional[str] = None
     designation: Optional[str] = None
     department: Optional[str] = None
+    job_role: Optional[str] = None
+    current_assignment: Optional[str] = None
+    educational_qualification: Optional[str] = None
+    previous_trainings: Optional[List[str]] = None
 
 class CompetencySchema(BaseModel):
     id: str
@@ -98,5 +108,6 @@ class AdminAnalyticsResponse(BaseModel):
     average_competency: float
     critical_gaps_count: int
     domain_readiness: dict
+    domain_trends: Optional[dict] = None
     top_gaps: List[dict]
     training_demand: List[dict]

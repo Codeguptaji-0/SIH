@@ -10,6 +10,10 @@ def initialize_database():
     seed_path = os.path.join(base_dir, "..", "database", "seed.sql")
 
     print(f"Initializing SkillSetu database at {db_path}...")
+    if os.path.exists(db_path):
+        os.remove(db_path)
+        print("[OK] Removed old database file.")
+
     conn = sqlite3.connect(db_path)
     cursor = conn.cursor()
 

@@ -50,16 +50,37 @@ export default function ProfilePage() {
 
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-4 border-t border-slate-100 text-xs">
               <div className="bg-slate-50 p-3.5 rounded-xl border border-slate-200/80">
-                <div className="text-slate-400 font-medium">Employee Persona ID</div>
-                <div className="font-bold text-slate-800 font-mono mt-1">MOSPI-OFF-2026-881</div>
+                <div className="text-slate-400 font-medium">Job Role</div>
+                <div className="font-bold text-slate-800 mt-1">{profile?.job_role || 'Senior Data Analyst & Field Survey Coordinator'}</div>
+              </div>
+              <div className="bg-slate-50 p-3.5 rounded-xl border border-slate-200/80">
+                <div className="text-slate-400 font-medium">Current Assignment</div>
+                <div className="font-bold text-slate-800 mt-1">{profile?.current_assignment || 'National Sample Survey 80th Round'}</div>
+              </div>
+              <div className="bg-slate-50 p-3.5 rounded-xl border border-slate-200/80">
+                <div className="text-slate-400 font-medium">Educational Qualification</div>
+                <div className="font-bold text-slate-800 mt-1">{profile?.educational_qualification || 'M.Sc. Statistics (Delhi University)'}</div>
               </div>
               <div className="bg-slate-50 p-3.5 rounded-xl border border-slate-200/80">
                 <div className="text-slate-400 font-medium">Experience Level</div>
-                <div className="font-bold text-slate-800 mt-1">6 Years (Mid-Level)</div>
+                <div className="font-bold text-slate-800 mt-1">{profile?.experience_years || 6} Years (Mid-Level)</div>
               </div>
-              <div className="bg-slate-50 p-3.5 rounded-xl border border-slate-200/80">
-                <div className="text-slate-400 font-medium">Primary Academy</div>
-                <div className="font-bold text-slate-800 mt-1">NSSTA & iGOT Ecosystem</div>
+              <div className="bg-slate-50 p-3.5 rounded-xl border border-slate-200/80 sm:col-span-2">
+                <div className="text-slate-400 font-medium mb-1">Previous Trainings</div>
+                <div className="flex flex-wrap gap-1.5">
+                  {profile?.previous_trainings && Array.isArray(profile.previous_trainings) && profile.previous_trainings.length > 0 ? (
+                    profile.previous_trainings.map((tr: string, idx: number) => (
+                      <span key={idx} className="bg-blue-50 text-blue-700 border border-blue-200 px-2 py-0.5 rounded text-[11px] font-medium">
+                        {tr}
+                      </span>
+                    ))
+                  ) : (
+                    <>
+                      <span className="bg-blue-50 text-blue-700 border border-blue-200 px-2 py-0.5 rounded text-[11px] font-medium">NSSO Field Enumeration Workshop</span>
+                      <span className="bg-blue-50 text-blue-700 border border-blue-200 px-2 py-0.5 rounded text-[11px] font-medium">Introduction to R for Official Statistics</span>
+                    </>
+                  )}
+                </div>
               </div>
             </div>
           </div>

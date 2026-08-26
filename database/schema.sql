@@ -14,6 +14,10 @@ CREATE TABLE IF NOT EXISTS profiles (
     full_name VARCHAR(100) NOT NULL,
     designation VARCHAR(100) NOT NULL,
     department VARCHAR(100) NOT NULL,
+    job_role VARCHAR(100),
+    current_assignment VARCHAR(150),
+    educational_qualification VARCHAR(150),
+    previous_trainings TEXT,
     experience_years INTEGER DEFAULT 5,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE

@@ -26,6 +26,10 @@ class Profile(Base):
     full_name = Column(String(100), nullable=False)
     designation = Column(String(100), nullable=False)
     department = Column(String(100), nullable=False)
+    job_role = Column(String(100), nullable=True)
+    current_assignment = Column(String(150), nullable=True)
+    educational_qualification = Column(String(150), nullable=True)
+    previous_trainings = Column(Text, nullable=True) # JSON list string
     experience_years = Column(Integer, default=5)
     created_at = Column(DateTime, default=datetime.utcnow)
 

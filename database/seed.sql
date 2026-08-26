@@ -7,10 +7,10 @@ INSERT OR REPLACE INTO users (id, email, password_hash, role) VALUES
 ('u-admin-001', 'admin@skillsetu.demo', 'demo_hash_admin', 'ADMIN');
 
 -- Profiles
-INSERT OR REPLACE INTO profiles (id, user_id, full_name, designation, department, experience_years) VALUES
-('p-official-001', 'u-official-001', 'Ananya Sharma', 'Statistical Officer', 'Ministry of Statistics and Programme Implementation (MoSPI DIID)', 6),
-('p-trainer-001', 'u-trainer-001', 'Dr. V. K. Rao', 'Senior Faculty', 'National Statistical Systems Training Academy (NSSTA)', 14),
-('p-admin-001', 'u-admin-001', 'Rajesh Kumar', 'Director & Division Head', 'Data Informatics & Innovation Division (DIID MoSPI)', 18);
+INSERT OR REPLACE INTO profiles (id, user_id, full_name, designation, department, job_role, current_assignment, educational_qualification, previous_trainings, experience_years) VALUES
+('p-official-001', 'u-official-001', 'Ananya Sharma', 'Statistical Officer', 'Ministry of Statistics and Programme Implementation (MoSPI DIID)', 'Senior Data Analyst & Field Survey Coordinator', 'National Sample Survey 80th Round (Socio-Economic Survey)', 'M.Sc. Statistics (Delhi University)', '["NSSO Field Enumeration Workshop", "Introduction to R for Official Statistics"]', 6),
+('p-trainer-001', 'u-trainer-001', 'Dr. V. K. Rao', 'Senior Faculty', 'National Statistical Systems Training Academy (NSSTA)', 'Lead Instructor - Statistical Inference', 'TPAC Curriculum Advisory & Executive Training', 'Ph.D. Econometrics (ISI Kolkata)', '["Advanced Survey Methodology", "iGOT Content Authoring Certification"]', 14),
+('p-admin-001', 'u-admin-001', 'Rajesh Kumar', 'Director & Division Head', 'Data Informatics & Innovation Division (DIID MoSPI)', 'Strategic Capacity Director', 'National Data & Analytics Platform (NDAP) Oversight', 'M.Tech Computer Science & Post-Grad Statistics', '["National E-Governance Leadership Programme", "Public Policy & Data Strategy"]', 18);
 
 -- Competencies across 4 Domains
 INSERT OR REPLACE INTO competencies (id, domain, name, description) VALUES

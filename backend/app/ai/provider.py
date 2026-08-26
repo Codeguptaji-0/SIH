@@ -12,7 +12,7 @@ class AIProvider:
 
 class MockAIProvider(AIProvider):
     def generate_mcqs(self, text_chunks: List[str], count: int = 5) -> List[Dict[str, Any]]:
-        # Deterministic rich mock questions generated based on statistical material
+        # Hardcoded baseline pool as reliable fallback
         mock_pool = [
             {
                 "question_text": "What is the primary objective of Stratified Sampling in National Sample Surveys?",
@@ -91,7 +91,61 @@ class MockAIProvider(AIProvider):
             }
         ]
         
-        # Select up to requested count
+        # Priority 2: Extract key sentences from uploaded text_chunks if available
+        extracted_sentences = []
+        if text_chunks and len(text_chunks) > 0:
+            import re
+            full_text = " ".join([c for c in text_chunks if isinstance(c, str)])
+            # Split into candidate sentences
+            raw_sentences = [s.strip() for s in re.split(r'[.\n!?]+', full_text) if len(s.strip()) > 25]
+            
+            # Prioritize sentences with numbers, technical terms, or longest sentence lengths
+            scored_sentences = []
+            for s in raw_sentences:
+                has_num = bool(re.search(r'\d+', s))
+                has_cap = bool(re.search(r'\b[A-Z]{2,}\b', s))
+                score = len(s) + (100 if has_num else 0) + (150 if has_cap else 0)
+                scored_sentences.append((score, s))
+                
+            scored_sentences.sort(key=lambda x: x[0], reverse=True)
+            extracted_sentences = [s[1] for s in scored_sentences[:count]]
+            
+        if extracted_sentences and len(extracted_sentences) >= 2:
+            results = []
+            domains_list = [
+                ("Statistical Methods & Inference", "Statistical Competencies"),
+                ("Survey Design & Sampling Methods", "Statistical Competencies"),
+                ("National Accounts & Price Statistics", "Statistical Competencies"),
+                ("Data Analysis & Python/R", "Technical Competencies"),
+                ("Official Statistics & Data Visualization", "Technical Competencies")
+            ]
+            
+            for idx, sentence in enumerate(extracted_sentences[:count]):
+                phrase = sentence[:80].strip() + "..." if len(sentence) > 80 else sentence.strip()
+                comp_name, dom_name = domains_list[idx % len(domains_list)]
+                
+                # Build content-connected question
+                q_text = f"According to the uploaded document material: '{phrase}', which of the following best represents the key principle?"
+                correct_opt = sentence[:120] if len(sentence) <= 120 else sentence[:117] + "..."
+                
+                results.append({
+                    "question_text": q_text,
+                    "options": [
+                        "The procedure should be bypassed during annual enumeration rounds.",
+                        f"It specifies: {correct_opt}",
+                        "It restricts data processing strictly to offline paper logs.",
+                        "It mandates 100% automated substitution without human review."
+                    ],
+                    "correct_option": 1,
+                    "explanation": f"Extracted directly from uploaded document reference: '{sentence}'",
+                    "competency_name": comp_name,
+                    "domain": dom_name,
+                    "difficulty": "medium" if idx % 2 == 0 else "hard",
+                    "source_reference": f"Uploaded Content Chunk #{idx + 1}"
+                })
+            return results
+
+        # Fallback to static mock pool if text_chunks is empty or insufficient
         results = []
         for i in range(count):
             base_item = mock_pool[i % len(mock_pool)].copy()

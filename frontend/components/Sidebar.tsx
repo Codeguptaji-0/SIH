@@ -15,6 +15,7 @@ import {
   FileCheck,
   HelpCircle
 } from 'lucide-react';
+import { useLanguage } from '../app/context/LanguageContext';
 
 interface SidebarProps {
   role?: string;
@@ -22,26 +23,26 @@ interface SidebarProps {
 
 export const Sidebar: React.FC<SidebarProps> = ({ role = 'OFFICIAL' }) => {
   const pathname = usePathname();
+  const { t } = useLanguage();
 
   const officialNav = [
-    { label: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
-    { label: 'My Competency Profile', href: '/dashboard/profile', icon: UserCheck },
-    { label: 'Assessment Center', href: '/dashboard/assessment', icon: Award },
-    { label: 'Competency Gaps', href: '/dashboard/results', icon: HelpCircle },
-    { label: 'Personalized Path', href: '/dashboard/learning-path', icon: BookOpen },
-    { label: 'Progress Tracker', href: '/dashboard/progress', icon: TrendingUp },
+    { label: t('navDashboard'), href: '/dashboard', icon: LayoutDashboard },
+    { label: t('navProfile'), href: '/dashboard/profile', icon: UserCheck },
+    { label: t('navAssessment'), href: '/dashboard/assessment', icon: Award },
+    { label: t('navLearningPath'), href: '/dashboard/learning-path', icon: BookOpen },
+    { label: t('navProgress'), href: '/dashboard/progress', icon: TrendingUp },
   ];
 
   const trainerNav = [
-    { label: 'Upload Materials', href: '/trainer/materials', icon: FileText },
-    { label: 'Question Bank', href: '/trainer/questions', icon: BookOpen },
-    { label: 'AI Review (Human-in-Loop)', href: '/trainer/review', icon: FileCheck },
+    { label: t('navMaterials'), href: '/trainer/materials', icon: FileText },
+    { label: t('navQuestionBank'), href: '/trainer/questions', icon: BookOpen },
+    { label: t('navReview'), href: '/trainer/review', icon: FileCheck },
   ];
 
   const adminNav = [
-    { label: 'Overview Analytics', href: '/admin/analytics', icon: BarChart3 },
-    { label: 'Competency Readiness', href: '/admin/analytics#readiness', icon: Award },
-    { label: 'Training Demand', href: '/admin/analytics#demand', icon: TrendingUp },
+    { label: t('navAnalytics'), href: '/admin/analytics', icon: BarChart3 },
+    { label: t('domainReadiness'), href: '/admin/analytics#readiness', icon: Award },
+    { label: t('navProgress'), href: '/admin/analytics#demand', icon: TrendingUp },
   ];
 
   const navItems = role === 'ADMIN' ? adminNav : (role === 'TRAINER' ? trainerNav : officialNav);
@@ -95,3 +96,4 @@ export const Sidebar: React.FC<SidebarProps> = ({ role = 'OFFICIAL' }) => {
     </aside>
   );
 };
+

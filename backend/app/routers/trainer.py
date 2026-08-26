@@ -6,6 +6,8 @@ from app.database import get_db
 from app.models.models import Question, Competency
 from pydantic import BaseModel
 
+from app.auth.dependencies import require_role
+
 router = APIRouter(prefix="/api/trainer", tags=["Trainer Review"])
 
 class QuestionReviewUpdate(BaseModel):
@@ -14,7 +16,11 @@ class QuestionReviewUpdate(BaseModel):
     explanation: Optional[str] = None
 
 @router.get("/questions")
-def get_trainer_questions(review_status: Optional[str] = None, db: Session = Depends(get_db)):
+def get_trainer_questions(
+    review_status: Optional[str] = None,
+    db: Session = Depends(get_db),
+    user=Depends(require_role("TRAINER", "ADMIN"))
+):
     query = db.query(Question)
     if review_status:
         query = query.filter(Question.review_status == review_status.upper())
@@ -39,7 +45,12 @@ def get_trainer_questions(review_status: Optional[str] = None, db: Session = Dep
     return result
 
 @router.post("/questions/{question_id}/review")
-def review_question(question_id: str, payload: QuestionReviewUpdate, db: Session = Depends(get_db)):
+def review_question(
+    question_id: str,
+    payload: QuestionReviewUpdate,
+    db: Session = Depends(get_db),
+    user=Depends(require_role("TRAINER", "ADMIN"))
+):
     q = db.query(Question).filter(Question.id == question_id).first()
     if not q:
         raise HTTPException(status_code=404, detail="Question not found")
