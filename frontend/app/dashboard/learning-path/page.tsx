@@ -5,12 +5,13 @@ import Link from 'next/link';
 import { Navbar } from '@/components/Navbar';
 import { Sidebar } from '@/components/Sidebar';
 import { BookOpen, CheckCircle, Clock, ExternalLink, ArrowRight, Shield } from 'lucide-react';
+import { apiFetch } from '@/app/lib/api';
 
 export default function LearningPathPage() {
   const [learningPath, setLearningPath] = useState<any[]>([]);
 
   useEffect(() => {
-    fetch('/api/recommendations')
+    apiFetch('/api/recommendations')
       .then((res) => res.json())
       .then((data) => {
         if (data.learning_path && data.learning_path.length > 0) {
@@ -66,7 +67,7 @@ export default function LearningPathPage() {
 
   const handleComplete = async (itemId: string) => {
     try {
-      await fetch(`/api/recommendations/${itemId}/complete`, { method: 'POST' });
+      await apiFetch(`/api/recommendations/${itemId}/complete`, { method: 'POST' });
       setLearningPath((prev) =>
         prev.map((item) => (item.id === itemId ? { ...item, status: 'COMPLETED' } : item))
       );

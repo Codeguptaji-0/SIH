@@ -1,10 +1,16 @@
 -- Seed Data for SkillSetu (MoSPI SIH26101 Demo)
 
 -- Users
+-- password_hash values are real PBKDF2-HMAC-SHA256 digests (600,000 iterations,
+-- 16-byte random per-user salt) produced by hash_password() in
+-- backend/app/auth/dependencies.py. All three demo accounts share the password
+-- SkillSetu@2026 but have DIFFERENT hashes, because each row carries its own salt.
+-- These replaced the literal placeholders 'demo_hash_official' / _trainer / _admin,
+-- which could never verify against any password.
 INSERT OR REPLACE INTO users (id, email, password_hash, role) VALUES
-('u-official-001', 'official@skillsetu.demo', 'demo_hash_official', 'OFFICIAL'),
-('u-trainer-001', 'trainer@skillsetu.demo', 'demo_hash_trainer', 'TRAINER'),
-('u-admin-001', 'admin@skillsetu.demo', 'demo_hash_admin', 'ADMIN');
+('u-official-001', 'official@skillsetu.demo', 'pbkdf2_sha256$600000$f504725fb6fffc95d28fe49871a68ec7$6b5a79aa2be008e311dd1ac3caedf45e2dafd0b08d56b95b3a49d0f8d888a28c', 'OFFICIAL'),
+('u-trainer-001', 'trainer@skillsetu.demo', 'pbkdf2_sha256$600000$2f90ed75876bcee391b9b76445ea0ef9$675d4658431a087e2a8e5796b0f00e77d2ef0d41126d22cb08067229befe4bdb', 'TRAINER'),
+('u-admin-001', 'admin@skillsetu.demo', 'pbkdf2_sha256$600000$df178df3d02eae925c15409a6d540cc9$b2dd3f8e63da5afa3ae90080dc79252f702f387dbf3f80491502e90adf10487e', 'ADMIN');
 
 -- Profiles
 INSERT OR REPLACE INTO profiles (id, user_id, full_name, designation, department, job_role, current_assignment, educational_qualification, previous_trainings, experience_years) VALUES

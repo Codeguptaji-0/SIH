@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react';
 import { Bot, X, Send, Sparkles, MessageSquare } from 'lucide-react';
+import { apiFetch } from '@/app/lib/api';
 
 export const VirtualAssistantWidget: React.FC = () => {
   const [isOpen, setIsOpen] = useState(false);
@@ -24,7 +25,7 @@ export const VirtualAssistantWidget: React.FC = () => {
     setLoading(true);
 
     try {
-      const res = await fetch('/api/assistant/chat', {
+      const res = await apiFetch('/api/assistant/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ message: userMsg })

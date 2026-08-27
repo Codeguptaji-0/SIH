@@ -6,6 +6,7 @@ import { Navbar } from '@/components/Navbar';
 import { Sidebar } from '@/components/Sidebar';
 import { WowTransitionModal } from '@/components/WowTransitionModal';
 import { Award, ArrowRight, ArrowLeft, CheckCircle2, Clock, Shield } from 'lucide-react';
+import { apiFetch } from '@/app/lib/api';
 
 export default function AdaptiveQuizPage() {
   const router = useRouter();
@@ -17,7 +18,7 @@ export default function AdaptiveQuizPage() {
   const [showWowModal, setShowWowModal] = useState(false);
 
   useEffect(() => {
-    fetch('/api/quizzes/active')
+    apiFetch('/api/quizzes/active')
       .then((res) => res.json())
       .then((data) => {
         if (data.questions && data.questions.length > 0) {
@@ -134,7 +135,7 @@ export default function AdaptiveQuizPage() {
     }));
 
     try {
-      await fetch('/api/quizzes/active-quiz-session-001/submit', {
+      await apiFetch('/api/quizzes/active-quiz-session-001/submit', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ answers: payloadAnswers })

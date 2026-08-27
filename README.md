@@ -94,10 +94,37 @@ npm run dev
 
 ## 🔑 Demo Login Accounts
 
-Single-click persona auth buttons are enabled on `/login`:
-- **Official Persona:** `official@skillsetu.demo` (Ananya Sharma - Statistical Officer, MoSPI DIID)
-- **Trainer Persona:** `trainer@skillsetu.demo` (Dr. V. K. Rao - Senior Faculty, NSSTA)
-- **Admin Persona:** `admin@skillsetu.demo` (Rajesh Kumar - Director, MoSPI DIID)
+All three seeded accounts share the password **`SkillSetu@2026`**.
+
+| Role | Email | Persona |
+|---|---|---|
+| Official | `official@skillsetu.demo` | Ananya Sharma — Statistical Officer, MoSPI DIID |
+| Trainer | `trainer@skillsetu.demo` | Dr. V. K. Rao — Senior Faculty, NSSTA |
+| Admin | `admin@skillsetu.demo` | Rajesh Kumar — Director, MoSPI DIID |
+
+The `/login` screen offers both one-click persona buttons (which submit the demo
+password for you) and an email + password form. A failed sign-in stays on the
+login screen and shows the error — it no longer navigates into the dashboard.
+
+If sign-in fails with *"Invalid email or password"*, re-seed the database:
+`cd backend && python init_db.py`. The seeded password hashes live in
+`database/seed.sql`.
+
+### Authentication notes
+
+- Passwords are verified server-side with **PBKDF2-HMAC-SHA256**, 600,000
+  iterations and a 16-byte random per-user salt (Python standard library, no
+  extra dependency). PBKDF2 is an approved scheme under NIST SP 800-63B.
+- Access tokens are **signed HS256 JWTs** carrying `sub`, `role`, `exp`, `iat`
+  and a unique `jti`. Unsigned or tampered tokens are rejected, and `POST
+  /api/auth/logout` adds a token to a revocation list.
+- Authorization is enforced by the `require_role(...)` dependency on every
+  protected route, using an exact role match.
+- **Before deploying anywhere real:** remove the quick-login buttons from
+  `frontend/app/login/page.tsx`, drop `DEMO_PASSWORD` from
+  `frontend/app/context/AuthContext.tsx`, rotate `SECRET_KEY`, and replace the
+  seeded accounts. The demo password is published above and is readable in the
+  client bundle, which is inherent to one-click login.
 
 ---
 

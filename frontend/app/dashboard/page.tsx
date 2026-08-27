@@ -9,6 +9,7 @@ import { VirtualAssistantWidget } from '@/components/VirtualAssistantWidget';
 import { Award, AlertTriangle, CheckCircle, ArrowRight, BookOpen, Clock, RefreshCw } from 'lucide-react';
 
 import { useLanguage } from '../context/LanguageContext';
+import { apiFetch } from '@/app/lib/api';
 
 export default function OfficialDashboard() {
   const [profile, setProfile] = useState<any>(null);
@@ -17,14 +18,14 @@ export default function OfficialDashboard() {
   const { t } = useLanguage();
 
   useEffect(() => {
-    fetch('/api/profile/me')
+    apiFetch('/api/profile/me')
       .then((res) => res.json())
       .then((data) => {
         setProfile(data);
       })
       .catch(() => {});
 
-    fetch('/api/competency/me')
+    apiFetch('/api/competency/me')
       .then((res) => res.json())
       .then((data) => {
         if (data.competencies && data.competencies.length > 0) {

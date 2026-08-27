@@ -1,35 +1,52 @@
 "use client";
 
 import React, { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { Navbar } from '@/components/Navbar';
 import { Sidebar } from '@/components/Sidebar';
 import { BarChart3, Users, Award, AlertTriangle, TrendingUp, TrendingDown, Minus, Shield } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
 import { useAuth } from '../../context/AuthContext';
+import { apiFetch } from '../../lib/api';
 
 export default function AdminAnalyticsPage() {
   const [analytics, setAnalytics] = useState<any>(null);
-  const { user, loginPersona, getAuthHeaders } = useAuth();
+  const { user, ready } = useAuth();
+  const router = useRouter();
 
+  /**
+   * Load analytics for a signed-in administrator.
+   *
+   * This page used to call loginPersona('admin@skillsetu.demo') on mount, which
+   * silently signed any visitor in as the ADMIN persona simply for opening the
+   * URL - the ADMIN role was granted by navigation rather than by
+   * authentication. A visitor without an ADMIN session is now sent to the login
+   * screen, and the backend's require_role("ADMIN") guard is the real gate.
+   */
   useEffect(() => {
-    // Ensure Admin persona token is requested if current user is not ADMIN
-    if (!user || user.role !== 'ADMIN') {
-      loginPersona('admin@skillsetu.demo').then(() => fetchAnalytics());
-    } else {
-      fetchAnalytics();
+    if (!ready) return;
+
+    if (!user) {
+      router.replace('/login');
+      return;
     }
-  }, [user?.role]);
+    if (user.role !== 'ADMIN') {
+      router.replace('/dashboard');
+      return;
+    }
+    fetchAnalytics();
+  }, [ready, user?.role]);
 
   const fetchAnalytics = () => {
-    fetch('http://localhost:8000/api/admin/analytics', {
-      headers: getAuthHeaders(),
-    })
-      .then((res) => {
-        if (res.ok) return res.json();
-        // Fallback fetch
-        return fetch('/api/admin/analytics').then(r => r.json());
+    // The previous version fell back to an unauthenticated retry when the
+    // authenticated call failed, which could only ever return a 401 body that
+    // was then rendered as if it were data. A failure now leaves `analytics`
+    // null so the page keeps its own placeholder values.
+    apiFetch('/api/admin/analytics')
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (data) setAnalytics(data);
       })
-      .then((data) => setAnalytics(data))
       .catch(() => {});
   };
 

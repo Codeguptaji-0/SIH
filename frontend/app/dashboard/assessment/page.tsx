@@ -5,12 +5,13 @@ import Link from 'next/link';
 import { Navbar } from '@/components/Navbar';
 import { Sidebar } from '@/components/Sidebar';
 import { Award, ArrowRight, BookOpen, Clock, FileText, CheckCircle } from 'lucide-react';
+import { apiFetch } from '@/app/lib/api';
 
 export default function AssessmentCenterPage() {
   const [materials, setMaterials] = useState<any[]>([]);
 
   useEffect(() => {
-    fetch('/api/materials')
+    apiFetch('/api/materials')
       .then((res) => res.json())
       .then((data) => setMaterials(data))
       .catch(() => {});

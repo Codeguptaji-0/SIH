@@ -5,6 +5,7 @@ import { Navbar } from '@/components/Navbar';
 import { Sidebar } from '@/components/Sidebar';
 import { Upload, FileText, CheckCircle2, Sparkles, AlertCircle, ArrowRight } from 'lucide-react';
 import Link from 'next/link';
+import { apiFetch } from '@/app/lib/api';
 
 export default function UploadMaterialsPage() {
   const [file, setFile] = useState<File | null>(null);
@@ -28,7 +29,7 @@ export default function UploadMaterialsPage() {
     formData.append('file', file);
 
     try {
-      const res = await fetch('/api/materials/upload', {
+      const res = await apiFetch('/api/materials/upload', {
         method: 'POST',
         body: formData
       });
@@ -50,7 +51,7 @@ export default function UploadMaterialsPage() {
   const handleGenerateQuestions = async () => {
     setGenLoading(true);
     try {
-      await fetch('/api/quizzes/generate', {
+      await apiFetch('/api/quizzes/generate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

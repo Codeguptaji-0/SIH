@@ -4,12 +4,13 @@ import React, { useEffect, useState } from 'react';
 import { Navbar } from '@/components/Navbar';
 import { Sidebar } from '@/components/Sidebar';
 import { UserCheck, Shield, CheckCircle2, Award, Briefcase, Building } from 'lucide-react';
+import { apiFetch } from '@/app/lib/api';
 
 export default function ProfilePage() {
   const [profile, setProfile] = useState<any>(null);
 
   useEffect(() => {
-    fetch('/api/profile/me')
+    apiFetch('/api/profile/me')
       .then((res) => res.json())
       .then((data) => setProfile(data))
       .catch(() => {});

@@ -4,12 +4,13 @@ import React, { useEffect, useState } from 'react';
 import { Navbar } from '@/components/Navbar';
 import { Sidebar } from '@/components/Sidebar';
 import { BookOpen, CheckCircle, Clock } from 'lucide-react';
+import { apiFetch } from '@/app/lib/api';
 
 export default function QuestionBankPage() {
   const [questions, setQuestions] = useState<any[]>([]);
 
   useEffect(() => {
-    fetch('/api/trainer/questions')
+    apiFetch('/api/trainer/questions')
       .then((res) => res.json())
       .then((data) => setQuestions(data))
       .catch(() => {});

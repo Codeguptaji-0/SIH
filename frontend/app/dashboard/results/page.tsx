@@ -5,12 +5,13 @@ import Link from 'next/link';
 import { Navbar } from '@/components/Navbar';
 import { Sidebar } from '@/components/Sidebar';
 import { Award, AlertTriangle, CheckCircle, ArrowRight, HelpCircle, BookOpen } from 'lucide-react';
+import { apiFetch } from '@/app/lib/api';
 
 export default function ResultsPage() {
   const [results, setResults] = useState<any>(null);
 
   useEffect(() => {
-    fetch('/api/competency/me')
+    apiFetch('/api/competency/me')
       .then((res) => res.json())
       .then((data) => {
         setResults(data);

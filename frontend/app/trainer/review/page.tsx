@@ -4,12 +4,13 @@ import React, { useEffect, useState } from 'react';
 import { Navbar } from '@/components/Navbar';
 import { Sidebar } from '@/components/Sidebar';
 import { CheckCircle2, XCircle, Edit3, Shield, Sparkles, FileCheck } from 'lucide-react';
+import { apiFetch } from '@/app/lib/api';
 
 export default function TrainerReviewPage() {
   const [questions, setQuestions] = useState<any[]>([]);
 
   useEffect(() => {
-    fetch('/api/trainer/questions?review_status=PENDING')
+    apiFetch('/api/trainer/questions?review_status=PENDING')
       .then((res) => res.json())
       .then((data) => {
         if (data && data.length > 0) {
@@ -40,7 +41,7 @@ export default function TrainerReviewPage() {
 
   const handleAction = async (qid: string, action: string) => {
     try {
-      await fetch(`/api/trainer/questions/${qid}/review`, {
+      await apiFetch(`/api/trainer/questions/${qid}/review`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action })
