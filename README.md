@@ -74,6 +74,12 @@ cd backend
 python init_db.py
 ```
 
+> `init_db.py` deletes and rebuilds `skillsetu.db` from `database/schema.sql` +
+> `database/seed.sql`, so **stop the backend first**. While uvicorn is running it
+> holds the file open and you get
+> `PermissionError: [WinError 32] ... being used by another process` — the old
+> database then stays in place and every later command silently tests stale data.
+
 ### 2. Start Backend Service (Port 8000)
 ```bash
 cd backend
@@ -87,6 +93,18 @@ python -m uvicorn app.main:app --port 8000 --reload
 > `pip install -r requirements.txt` may satisfy one interpreter while the server
 > runs on another. `python -m` guarantees both are the same.
 
+### 2a. Verify the seed pool and competency banding (no server needed)
+```bash
+cd backend
+python verify_competency_banding.py
+```
+*Builds `schema.sql` + `seed.sql` into an in-memory SQLite database with no
+third-party dependencies and drives `CompetencyEngine` directly. Asserts that every
+difficulty band is deep enough that a 20-question adaptive run cannot exhaust it,
+that answer positions are spread so "always pick B" loses, that the demo officer's
+role targets reach the engine, and — by enumerating every possible answer pattern on
+one competency — that identical answers are banded differently for two job roles.*
+
 ### 2b. Verify the adaptive assessment end to end
 ```bash
 cd backend
@@ -95,7 +113,11 @@ python smoke_adaptive.py
 *Asserts the difficulty ladder over real HTTP: two consecutive correct answers must
 step the level up, two consecutive incorrect must step it down, a single answer must
 not move it, served questions must not leak the correct option, and another account
-must not be able to read the session. Exits non-zero if any of that stops being true.*
+must not be able to read the session. Also asserts that role targets reach both
+scoring paths and that a fixed-length submission returns `answer_review` with the
+correct option and explanation for every answer. Exits non-zero if any of that stops
+being true, and refuses to run at all against a database that predates the current
+seed — a thin pool makes the ladder substitute difficulties and proves nothing.*
 
 *If `/api/auth/login` ever returns HTTP 500, run `python diag_login.py` — it walks
 the login path in six widening stages and prints the real traceback for the one

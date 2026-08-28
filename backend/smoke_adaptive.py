@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """
-End-to-end smoke test for the adaptive difficulty ladder (SkillSetu UVP #2).
+End-to-end smoke test for the adaptive difficulty ladder (SkillSetu UVP #2), plus
+the fixed-length submit path and role-relative competency banding.
 
 Everything about POST /api/quizzes/adaptive/start, .../{id}/answer and
 GET /api/quizzes/adaptive/{id} had only ever been verified *statically* -
@@ -17,6 +18,12 @@ expected ladder is known up front.
 
 Reading the DB is only legitimate because this is a test harness against the
 demo database. The API itself never leaks correct_option before an answer.
+
+Sections 7b and 8 cover what the ladder alone does not: that the role targets in
+seed.sql reach both scoring paths over real HTTP, and that a fixed-length
+submission comes back with answer_review so an officer is told what was wrong
+rather than only how badly they did. Section 0 refuses to run at all against a
+database that predates the seed expansion - see the comment there.
 
 Usage - the backend must already be running:
     python smoke_adaptive.py
@@ -38,6 +45,11 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 DEMO_EMAIL = "official@skillsetu.demo"
 DEMO_PASSWORD = "SkillSetu@2026"  # seeded demo credential, documented in database/seed.sql
 LEVELS = ["easy", "medium", "hard"]
+
+# The longest run the backend allows is MAX_ADAPTIVE_QUESTIONS = 20, so a band with
+# at least that many approved questions can never be exhausted mid-run. seed.sql
+# ships 24 / 24 / 25; anything below this means the live DB predates the expansion.
+MIN_PER_BAND = 20
 
 failures = []
 notes = []
@@ -148,6 +160,34 @@ def main():
     for _, (_, _, difficulty, review_status) in approved.items():
         by_level[difficulty] = by_level.get(difficulty, 0) + 1
     print("Approved pool by difficulty: %s\n" % (by_level or "empty"))
+
+    # ------------------------------------------------------- stale-DB guard
+    #
+    # This test reads the live sqlite file the server is using. init_db.py cannot
+    # rewrite that file while uvicorn holds it open - it fails with
+    # "PermissionError: [WinError 32] ... being used by another process" - so it is
+    # easy to reseed nothing, restart nothing, and then watch a run that quietly
+    # exercises the OLD pool. That happened: a 10-question run against the old
+    # 2-easy pool substituted twice and every ladder assertion still passed,
+    # because substitution is honest behaviour, just not the behaviour being
+    # claimed. Fail loudly instead.
+    print("0. Live database is current with database/seed.sql")
+    stale = [lv for lv in LEVELS if by_level.get(lv, 0) < MIN_PER_BAND]
+    if not check(
+        not stale,
+        "every difficulty band holds >= %d approved questions" % MIN_PER_BAND,
+        "thin bands %s in %s" % ({lv: by_level.get(lv, 0) for lv in stale}, args.db),
+    ):
+        print("")
+        print("  The server is running against a stale database. Reseed it:")
+        print("    1. stop uvicorn (Ctrl+C)  - it holds skillsetu.db open")
+        print("    2. python init_db.py")
+        print("    3. python -m uvicorn app.main:app --reload")
+        print("    4. python smoke_adaptive.py")
+        print("")
+        print("Cannot prove the ladder walks freely on a pool this thin.")
+        return 1
+    print("")
 
     # ---------------------------------------------------------------- login
     print("1. POST /api/auth/login")
@@ -366,6 +406,109 @@ def main():
                  result.get("correct_answers"), result.get("total_questions")))
         print("")
 
+        # ------------------------------------------- role-relative banding
+        #
+        # The engine reads role_targets now, and the adaptive summary returns
+        # evaluate_quiz() wholesale, so the adaptive path must inherit the role
+        # banding too. Asserted here because the offline harness proves the
+        # engine and the seed, not that this endpoint actually passes them.
+        print("7b. Role-relative banding reached the adaptive summary")
+        check(result.get("job_role") not in (None, ""),
+              "summary names the officer's job_role", str(result.get("job_role")))
+        check(result.get("banding_method") not in (None, ""),
+              "summary names the banding_method it used")
+        rows = result.get("results") or result.get("competency_results") or []
+        check(bool(rows), "summary carries per-competency rows", "%d rows" % len(rows))
+        applied = result.get("role_targets_applied")
+        check(isinstance(applied, int) and applied > 0,
+              "at least one competency was banded against a role target",
+              "role_targets_applied=%r of %d rows" % (applied, len(rows)))
+        if rows:
+            check(all(r.get("benchmark") in ("role_target", "absolute") for r in rows),
+                  "every row names the yardstick it was judged by")
+            targeted = [r for r in rows if r.get("benchmark") == "role_target"]
+            check(all(r.get("target_score") is not None for r in targeted),
+                  "every role-banded row reports the target it was judged against")
+            check(all(isinstance(r.get("gap_points"), (int, float)) for r in rows),
+                  "every row quantifies its shortfall in points")
+            worst = sorted(
+                [r for r in rows if r.get("priority")],
+                key=lambda r: r.get("priority"),
+            )
+            if worst:
+                top = worst[0]
+                print("  top priority: %s %.1f%% vs target %s -> %s (%.1f points short)"
+                      % (top.get("competency_name"), top.get("score") or 0.0,
+                         top.get("target_score"), top.get("status"),
+                         top.get("gap_points") or 0.0))
+        print("")
+
+    # ------------------------------------------- fixed-length submit + review
+    #
+    # The adaptive path revealed the explanation one question at a time; the
+    # fixed-length path collected explanations and threw them away, so an officer
+    # got a score and never learned what was wrong. answer_review closed that,
+    # and the quiz review screen renders it - which means it has to exist over
+    # real HTTP, not only in the engine's return value.
+    print("8. POST /api/quizzes/{quiz_id}/submit  (fixed-length path + answer_review)")
+    status, active = call("GET", base + "/api/quizzes/active", token=token)
+    if check(status == 200, "active quiz returns 200", "HTTP %s %s" % (status, active)):
+        quiz_id = (active or {}).get("quiz_id")
+        served = (active or {}).get("questions") or []
+        check(bool(served), "active quiz serves questions",
+              "%d served, approved_pool_size=%s"
+              % (len(served), (active or {}).get("approved_pool_size")))
+        check(all("correct_option" not in q for q in served),
+              "the fixed-length payload does NOT leak correct_option")
+        check(all("explanation" not in q for q in served),
+              "the fixed-length payload does NOT leak explanation before answering")
+        if served and quiz_id:
+            # Deliberately mixed: every third answer correct, the rest wrong, so the
+            # review has both kinds of entry and the banding has a real shortfall.
+            body = {"answers": []}
+            intended = {}
+            for i, q in enumerate(served):
+                key = answer_key.get(q["id"])
+                if not key:
+                    continue
+                correct, count = key[0], key[1]
+                pick = correct if i % 3 == 0 else wrong_option(correct, count)
+                intended[q["id"]] = (pick == correct)
+                body["answers"].append({"question_id": q["id"], "selected_option": pick})
+            status, sub = call("POST", "%s/api/quizzes/%s/submit"
+                              % (base, quiz_id), token=token, body=body)
+            if check(status == 200, "submit returns 200", "HTTP %s %s" % (status, sub)):
+                review = (sub or {}).get("answer_review") or []
+                check(len(review) == len(body["answers"]),
+                      "answer_review has one entry per submitted answer",
+                      "%d vs %d" % (len(review), len(body["answers"])))
+                check(all(a.get("explanation") for a in review),
+                      "every review entry carries the stored explanation")
+                check(all(a.get("correct_text") for a in review),
+                      "every review entry names the correct option text")
+                check(all(a.get("is_correct") == intended.get(a.get("question_id"))
+                          for a in review),
+                      "the server graded every answer the way this script intended")
+                check((sub or {}).get("banding_method") not in (None, ""),
+                      "submit names the banding_method it used")
+                check(isinstance((sub or {}).get("role_targets_applied"), int)
+                      and (sub or {}).get("role_targets_applied") > 0,
+                      "submit banded against role targets",
+                      "role_targets_applied=%r" % (sub or {}).get("role_targets_applied"))
+                check((sub or {}).get("raw_score") is not None,
+                      "submit reports raw_score alongside the weighted score")
+                wrong_entries = [a for a in review if not a.get("is_correct")]
+                print("  scored %s%% (raw %s%%) over %s answers, %d wrong, job_role=%r"
+                      % ((sub or {}).get("overall_score"), (sub or {}).get("raw_score"),
+                         (sub or {}).get("total_questions"), len(wrong_entries),
+                         (sub or {}).get("job_role")))
+                if wrong_entries:
+                    w = wrong_entries[0]
+                    print("  example review entry -> picked %r, correct %r"
+                          % (w.get("selected_text"), w.get("correct_text")))
+                    print("    why: %s" % (w.get("explanation") or "")[:140])
+    print("")
+
     # ----------------------------------------------------------------- report
     for note in notes:
         print("NOTE: %s" % note)
@@ -374,8 +517,8 @@ def main():
         for f in failures:
             print("  - %s" % f)
         return 1
-    print("\nALL ADAPTIVE SMOKE ASSERTIONS PASSED (%d questions answered over real HTTP)."
-          % answered)
+    print("\nALL SMOKE ASSERTIONS PASSED: adaptive ladder (%d answers), role-relative "
+          "banding and fixed-length answer_review, all over real HTTP." % answered)
     return 0
 
 
