@@ -8,6 +8,7 @@ import {
   AlertTriangle,
   ArrowRight,
   FileText,
+  Gauge,
   Loader2,
   RefreshCw,
 } from 'lucide-react';
@@ -172,6 +173,31 @@ export default function AssessmentCenterPage() {
               ) : null}
             </div>
           )}
+
+          {/* The fixed-length quiz above serves a set list. The adaptive run instead
+              chooses each next question from the officer's last two answers, so it is
+              a separate entry point rather than a mode toggle on the same screen. */}
+          <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+            <div className="flex items-center gap-3">
+              <div className="p-2.5 bg-amber-100 text-amber-700 rounded-xl">
+                <Gauge className="w-5 h-5" />
+              </div>
+              <div>
+                <h3 className="text-sm font-bold text-slate-800">Adaptive Assessment</h3>
+                <p className="text-[11px] text-slate-500 mt-0.5 max-w-xl">
+                  Starts at medium and moves with your answers — two correct in a row steps the
+                  difficulty up, two incorrect steps it down. Each move is shown with the reason
+                  the engine recorded.
+                </p>
+              </div>
+            </div>
+            <Link
+              href="/dashboard/adaptive"
+              className="bg-slate-900 hover:bg-slate-800 text-white font-bold px-5 py-2.5 rounded-xl shadow text-xs flex items-center gap-2 flex-shrink-0"
+            >
+              Start Adaptive Run <ArrowRight className="w-4 h-4" />
+            </Link>
+          </div>
 
           {!loading && (
             <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-4">

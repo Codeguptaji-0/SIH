@@ -14,6 +14,7 @@ import {
   BarChart3, 
   FileCheck,
   HelpCircle,
+  Gauge,
   Code2
 } from 'lucide-react';
 import { useLanguage } from '../app/context/LanguageContext';
@@ -30,6 +31,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ role = 'OFFICIAL' }) => {
     { label: t('navDashboard'), href: '/dashboard', icon: LayoutDashboard },
     { label: t('navProfile'), href: '/dashboard/profile', icon: UserCheck },
     { label: t('navAssessment'), href: '/dashboard/assessment', icon: Award },
+    { label: t('navAdaptive'), href: '/dashboard/adaptive', icon: Gauge },
     { label: t('navLearningPath'), href: '/dashboard/learning-path', icon: BookOpen },
     { label: t('navProgress'), href: '/dashboard/progress', icon: TrendingUp },
     { label: t('navVirtualLab'), href: '/dashboard/virtual-lab', icon: Code2 },
