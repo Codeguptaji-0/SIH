@@ -182,6 +182,30 @@ script on real statement boundaries and rewrites those upserts to
 `ON CONFLICT (id) DO NOTHING`. On the frontend, set `BACKEND_ORIGIN` — `next.config.js`
 used to hardcode `http://127.0.0.1:8000`, which on Vercel points at nothing.
 
+### Live question generation (optional)
+
+With no API key the app runs `MockAIProvider`: deterministic, offline, and good enough
+that the demo works on a train. To generate from a real model instead, set three
+variables **on the backend only** — a key in the frontend would be shipped to every
+visitor's browser:
+
+```bash
+cd backend
+python -m pip install -r requirements-anthropic.txt
+python check_anthropic.py            # prints the model IDs your key can see, then generates one batch
+```
+
+Then in `backend/.env` (gitignored): `AI_PROVIDER=anthropic`, `ANTHROPIC_API_KEY=sk-ant-…`,
+`ANTHROPIC_MODEL=<the ID that script printed>`. Confirm with
+`curl http://127.0.0.1:8000/api/health` → `"ai_provider":"anthropic:<model>"`.
+
+That check matters because every AI failure path in `app/ai/provider.py` falls back to
+the mock provider on purpose — a live demo must not crash on an expired key — so a
+misconfigured key produces plausible questions and no error. `/api/health` is how you
+tell the two apart; failures also log an `[AI ERROR]` line naming the exception.
+`python test_ai_provider.py` exercises the whole wiring, including every failure
+branch, with a stubbed SDK: no key, no network, no spend.
+
 ---
 
 ## 🔑 Demo Login Accounts

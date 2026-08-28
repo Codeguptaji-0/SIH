@@ -3,6 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.config import settings
 from app.database import engine, Base
 from app.auth.dependencies import HAS_JOSE, _JOSE_MISSING_MESSAGE
+from app.ai.provider import describe_ai_provider
 from app.routers import auth, profile, materials, quizzes, competency, recommendations, assistant, trainer, admin
 
 # python-jose is imported defensively in auth/dependencies.py so that module can be
@@ -77,6 +78,13 @@ def health_check():
         "app_name": "SkillSetu",
         "problem_statement": "SIH26101 (MoSPI)",
         "demo_mode": settings.DEMO_MODE,
+        # Which provider a generation call would actually use, resolved without
+        # constructing a client or touching the network. Worth exposing because every
+        # failure path in app/ai/provider.py degrades to the mock provider, which
+        # returns plausible questions - so a wrong model ID or an expired key looks
+        # like nothing at all. "mock" here while you expect "anthropic:..." is the
+        # answer to "why does the AI seem generic". Never includes key material.
+        "ai_provider": describe_ai_provider(),
         # Read from the live engine, not hardcoded. This string used to say
         # "SQLite (skillsetu.db)" unconditionally, so a Postgres deployment would
         # have reported SQLite - and the one endpoint you curl to find out what a

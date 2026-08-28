@@ -171,7 +171,20 @@ Environment variables:
 | `SECRET_KEY` | `python -c "import secrets; print(secrets.token_urlsafe(48))"` | with `DEMO_MODE=false` and no key, the app **refuses to start** — by design |
 | `DATABASE_URL` | the `postgresql+psycopg://…` URL from step 1 | unset means it quietly uses a local SQLite file that the platform wipes on every deploy |
 | `CORS_ORIGINS` | the exact Vercel origin, e.g. `https://skillsetu.vercel.app` | empty or `*` with `DEMO_MODE=false` is now a **startup error**, not a browser error |
-| `OPENAI_API_KEY` | optional | empty keeps `MockAIProvider`, which is deterministic and does not fail |
+| `AI_PROVIDER` | `anthropic`, `openai`, `mock`, or empty | empty means "decide from `DEMO_MODE` and whichever key is set"; naming a provider whose key is missing falls back to mock |
+| `ANTHROPIC_API_KEY` | `sk-ant-…` if you are using Claude | absent while `AI_PROVIDER=anthropic` silently means mocked questions |
+| `ANTHROPIC_MODEL` | an ID `python check_anthropic.py` printed | a wrong ID is a 404 the app swallows into `MockAIProvider` |
+| `OPENAI_API_KEY` | only if you chose OpenAI instead | see the `openai==3.3.1` caveat below before using this path |
+
+If you set a Claude key, the build command needs one more file:
+
+```
+pip install -r requirements.txt -r requirements-postgres.txt -r requirements-anthropic.txt
+```
+
+Without it the SDK import fails and the log says
+`[AI ERROR] could not start the Anthropic client (ModuleNotFoundError: …)` — the app
+keeps serving, from the mock provider.
 
 On the Python version: `requirements.txt` is pinned from Python **3.14.3**, and most
 platform images default lower. `render.yaml` asks for 3.12.8, which is the safer
@@ -181,9 +194,24 @@ unpinning — the pins are the versions the demo has actually run on.
 Two notes on what you are exposing. `--host 0.0.0.0` puts the API on the public
 internet; every protected route is behind `require_role(...)` with a signed HS256
 JWT, so that is intended, but it also means the published demo password now works
-from anywhere (step 6). And leave `OPENAI_API_KEY` empty unless you have read the
-caveat above `openai==3.3.1` in `requirements.txt`: `provider.py` is written against
-the 1.x client shape, and the fallback to the mock provider is silent.
+from anywhere (step 6). And prefer the Claude path over `OPENAI_API_KEY`: `provider.py`
+is written against the OpenAI 1.x client shape while `requirements.txt` pins
+`openai==3.3.1`, that path has never been exercised, and its fallback to the mock
+provider is silent. The Anthropic path is the one covered by
+`backend/test_ai_provider.py` and `backend/check_anthropic.py`.
+
+Before you paste a key into a platform dashboard, prove it locally — once, on your
+own machine, so a bad key is a visible error instead of quietly mocked questions:
+
+```bash
+cd backend
+python -m pip install -r requirements-anthropic.txt
+python check_anthropic.py          # lists the model IDs your key can see, then generates
+```
+
+That script has no fallback: 401/403 means the key, 404 means the model ID, 429 means
+a rate or credit limit. Copy the ID it marks into `ANTHROPIC_MODEL`. To check the
+wiring without a key or any spend at all, `python test_ai_provider.py`.
 
 Check it before moving on:
 
@@ -191,9 +219,11 @@ Check it before moving on:
 curl https://YOUR-API.onrender.com/api/health
 ```
 
-`{"status":"healthy", … "demo_mode":false, "database":"postgresql"}`. The
-`database` field reads the live engine, so if it says `sqlite` your `DATABASE_URL`
-never arrived.
+`{"status":"healthy", … "demo_mode":false, "database":"postgresql",
+"ai_provider":"anthropic:claude-…"}`. Two fields to read, not one: `database` comes
+from the live engine, so `sqlite` there means `DATABASE_URL` never arrived; and
+`ai_provider` saying `mock` while you expect Claude is the answer to "why do the
+questions look generic" — the key, the SDK or the model ID did not make it.
 
 ## 5. Deploy the frontend (Vercel)
 

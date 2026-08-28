@@ -1,0 +1,21 @@
+# Anthropic (Claude) support. Install ON TOP of requirements.txt, only if you have
+# a key and want live generation instead of the deterministic MockAIProvider:
+#
+#     python -m pip install -r requirements-anthropic.txt
+#     python check_anthropic.py            # prints the model IDs your key can see
+#     python pin_requirements.py --file requirements-anthropic.txt --write
+#
+# Then set, in backend/.env:
+#     AI_PROVIDER=anthropic
+#     ANTHROPIC_API_KEY=sk-ant-...         # never commit this file
+#     ANTHROPIC_MODEL=<one of the IDs check_anthropic.py printed>
+#
+# Left as a range, like requirements-postgres.txt and unlike requirements.txt: this
+# has never been installed on the machine that runs the demo, so a pin here would be
+# a version nobody has run. Pin it with the command above once it is installed.
+#
+# Note this is an ADDITION, not a replacement. `openai` stays in requirements.txt
+# because OpenAIProvider is still there and still selectable with AI_PROVIDER=openai;
+# whichever key is present decides, and with no key at all the mock provider runs and
+# the demo works offline exactly as before.
+anthropic>=0.40
