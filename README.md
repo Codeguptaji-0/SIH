@@ -134,6 +134,23 @@ nothing.*
 the login path in six widening stages and prints the real traceback for the one
 that breaks.*
 
+### 2c. Pin the dependencies to the versions you just verified
+
+```bash
+cd backend
+python pin_requirements.py            # show what would change
+python pin_requirements.py --write    # rewrite requirements.txt with ==
+```
+*`requirements.txt` ships with `>=` ranges, which resolve to "whatever PyPI
+publishes today" — one major release of any listed package is enough to break a
+setup that worked last week. This rewrites the same curated list with the versions
+installed under the interpreter you run it with, so the pins describe an
+environment the demo has actually run on. It is deliberately not `pip freeze`,
+which would replace the curated list with the entire environment and lose the
+record of which packages the project chose. Extras such as
+`python-jose[cryptography]` survive the rewrite; anything not installed makes it
+exit non-zero and write nothing.*
+
 ### 3. Start Frontend UI (Port 3000)
 ```bash
 cd frontend
