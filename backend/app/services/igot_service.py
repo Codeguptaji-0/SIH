@@ -67,8 +67,11 @@ class IGOTService:
 
     @classmethod
     async def _call_external_api(cls, endpoint: str, params: dict) -> List[Dict[str, Any]]:
-        api_key = getattr(settings, "IGOT_API_KEY", None)
-        base_url = getattr(settings, "IGOT_BASE_URL", "https://igotkarmayogi.gov.in/api/v1")
+        # Read declared settings fields directly. getattr(settings, ...) with a default
+        # silently ignored a real IGOT_API_KEY from the environment, so a live MoSPI key
+        # could never be used without editing source.
+        api_key = settings.IGOT_API_KEY or None
+        base_url = settings.IGOT_BASE_URL
 
         max_retries = 3
         backoff_delay = 0.2
@@ -106,9 +109,9 @@ class IGOTService:
             if course.get("competency_keyword", "") in query or query in course.get("title", "").lower():
                 results.append(course)
         
-        if not results:
-            results = catalog[:2]
-
+        # Return an honest empty list when nothing matches. Falling back to catalog[:2]
+        # returned unrelated courses that then consumed the caller's result budget, so
+        # a genuine competency gap was silently dropped from the learning path.
         return results
 
     @classmethod

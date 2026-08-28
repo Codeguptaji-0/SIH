@@ -156,7 +156,7 @@ sys.stdout = io.StringIO()
         onLoad={initPyodide}
       />
 
-      <Navbar currentRole="OFFICIAL" userName="Ananya Sharma" />
+      <Navbar currentRole="OFFICIAL" />
 
       <div className="flex flex-1">
         <Sidebar role="OFFICIAL" />

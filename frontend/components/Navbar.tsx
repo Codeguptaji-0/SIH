@@ -2,6 +2,7 @@
 
 import React from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { Shield, Sparkles, User, Award, BookOpen, LogOut, Globe } from 'lucide-react';
 import { useLanguage } from '../app/context/LanguageContext';
 import { useAuth } from '../app/context/AuthContext';
@@ -17,18 +18,39 @@ export const Navbar: React.FC<NavbarProps> = ({
   userName,
   onRoleSwitch
 }) => {
+  const router = useRouter();
   const { language, toggleLanguage, t } = useLanguage();
-  const { user, loginPersona } = useAuth();
+  const { user, logout } = useAuth();
 
   const activeRole = currentRole || user?.role || 'OFFICIAL';
-  const activeName = userName || user?.full_name || 'Ananya Sharma';
+  // No fallback name: inventing a person here made every screen look like it
+  // was showing a real officer's record even when nothing had loaded.
+  const activeName = userName || user?.full_name || '';
 
+  /**
+   * Switch persona.
+   *
+   * A parent can handle this locally; otherwise there is nothing this component
+   * can legitimately do except send the user to sign in as that account. It used
+   * to call loginPersona(email), which authenticated using a password compiled
+   * into the bundle. Only the email is passed along - the password is typed on
+   * the login page.
+   */
   const handleSwitch = (role: string) => {
     if (onRoleSwitch) {
       onRoleSwitch(role);
-    } else {
-      const email = role === 'ADMIN' ? 'admin@skillsetu.demo' : role === 'TRAINER' ? 'trainer@skillsetu.demo' : 'official@skillsetu.demo';
-      loginPersona(email);
+      return;
+    }
+    const email = role === 'ADMIN' ? 'admin@skillsetu.demo' : role === 'TRAINER' ? 'trainer@skillsetu.demo' : 'official@skillsetu.demo';
+    router.push(`/login?email=${encodeURIComponent(email)}`);
+  };
+
+  /** Revoke the session server-side before leaving, then go to the login page. */
+  const handleLogout = async () => {
+    try {
+      await logout();
+    } finally {
+      router.push('/login');
     }
   };
 
@@ -100,17 +122,25 @@ export const Navbar: React.FC<NavbarProps> = ({
 
           <div className="flex items-center space-x-2 bg-slate-800/80 px-3 py-1.5 rounded-lg border border-slate-700">
             <div className="w-7 h-7 rounded-full bg-blue-600 text-white flex items-center justify-center font-bold text-xs">
-              {activeName.charAt(0)}
+              {activeName ? activeName.charAt(0) : <User className="w-3.5 h-3.5" />}
             </div>
             <div className="hidden sm:block text-left">
-              <div className="text-xs font-semibold text-slate-200">{activeName}</div>
+              {activeName && (
+                <div className="text-xs font-semibold text-slate-200">{activeName}</div>
+              )}
               <div className="text-[10px] text-slate-400 font-medium">{activeRole}</div>
             </div>
           </div>
 
-          <Link href="/login" className="text-slate-400 hover:text-white p-2 rounded-lg hover:bg-slate-800 transition-colors">
-            <LogOut className="w-4 h-4" />
-          </Link>
+          <button
+            type="button"
+            onClick={handleLogout}
+            aria-label={t('logout') || 'Sign out'}
+            title={t('logout') || 'Sign out'}
+            className="text-slate-400 hover:text-white p-2 rounded-lg hover:bg-slate-800 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500"
+          >
+            <LogOut className="w-4 h-4" aria-hidden="true" />
+          </button>
         </div>
 
       </div>

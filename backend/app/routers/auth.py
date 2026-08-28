@@ -37,12 +37,16 @@ def _build_user_response(user: User, db: Session, token: str = None) -> UserResp
         id=user.id,
         email=user.email,
         role=user.role,
-        full_name=profile.full_name if profile else "Official User",
-        designation=profile.designation if profile else "Statistical Officer",
-        department=profile.department if profile else "MoSPI DIID",
-        job_role=profile.job_role if profile else "Senior Data Analyst",
-        current_assignment=profile.current_assignment if profile else "NSS 80th Round Survey",
-        educational_qualification=profile.educational_qualification if profile else "M.Sc. Statistics",
+        # Empty strings, not invented values. These six fields previously fabricated a
+        # plausible officer ("Statistical Officer", "MoSPI DIID", "NSS 80th Round Survey")
+        # whenever a profile row was missing, so an incomplete account rendered as a
+        # complete one and the UI could not tell real data from filler.
+        full_name=(profile.full_name if profile else "") or "",
+        designation=(profile.designation if profile else "") or "",
+        department=(profile.department if profile else "") or "",
+        job_role=(profile.job_role if profile else "") or "",
+        current_assignment=(profile.current_assignment if profile else "") or "",
+        educational_qualification=(profile.educational_qualification if profile else "") or "",
         previous_trainings=trainings,
         access_token=token,
         token_type="bearer"

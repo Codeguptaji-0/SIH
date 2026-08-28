@@ -1,5 +1,6 @@
 import hashlib
 import hmac
+import logging
 import secrets
 from datetime import datetime, timedelta, timezone
 from typing import Optional
@@ -9,7 +10,51 @@ from app.database import get_db
 from app.models.models import User
 from app.config import settings
 
-SECRET_KEY = getattr(settings, "SECRET_KEY", "skillsetu_sih26101_secret_key_demo_2026")
+logger = logging.getLogger(__name__)
+
+MIN_SECRET_KEY_LENGTH = 32
+
+
+def _resolve_secret_key() -> str:
+    """
+    Resolve the JWT signing key from configuration.
+
+    There is deliberately NO hardcoded fallback literal. The previous version had
+    one in this git-tracked file, which made the signing key public: an ADMIN token
+    could be forged from published repository values alone, with no password, and
+    require_role("ADMIN") accepted it. A default value in source is not a default,
+    it is a published credential.
+
+    When SECRET_KEY is unset:
+      * DEMO_MODE=True  -> generate a random per-process key. Tokens are invalidated
+        by a restart, which is inconvenient for a demo but never forgeable.
+      * DEMO_MODE=False -> refuse to start. A real deployment must supply a key.
+    """
+    configured = (settings.SECRET_KEY or "").strip()
+    if configured:
+        if len(configured) < MIN_SECRET_KEY_LENGTH:
+            raise RuntimeError(
+                "SECRET_KEY is too short (%d chars). Use at least %d. "
+                "Generate one with: python -c \"import secrets; print(secrets.token_urlsafe(48))\""
+                % (len(configured), MIN_SECRET_KEY_LENGTH)
+            )
+        return configured
+
+    if settings.DEMO_MODE:
+        logger.warning(
+            "SECRET_KEY is not set. Generating an ephemeral key for this process "
+            "because DEMO_MODE=True. Existing tokens will not survive a restart. "
+            "Set SECRET_KEY in .env before any shared or public deployment."
+        )
+        return secrets.token_urlsafe(48)
+
+    raise RuntimeError(
+        "SECRET_KEY is not set and DEMO_MODE is False. Refusing to start with an "
+        "unknown signing key. Set SECRET_KEY in the environment or .env file."
+    )
+
+
+SECRET_KEY = _resolve_secret_key()
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 120
 

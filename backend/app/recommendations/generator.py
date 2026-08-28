@@ -14,32 +14,61 @@ class RecommendationGenerator:
         learning_path = []
         seen_course_ids = set()
 
+        # Coverage rule: every competency that is not "strong" must appear in the
+        # returned path, either with a matched course or with an explicit
+        # NO_COURSE_MAPPED marker.
+        #
+        # The previous version broke out of the loop once the path reached five items.
+        # Because courses were appended competency-by-competency, the last gaps were
+        # silently dropped - a measured run produced three items for seven gaps, and one
+        # critical gap vanished with no trace in the response. Losing a critical gap
+        # without saying so is worse than returning a longer list.
+        MAX_COURSES_PER_COMPETENCY = 2
+
         for item in sorted_gaps:
             comp_id = item["competency_id"]
             comp_name = item["competency_name"]
             status = item["status"]
 
-            # Skip strong areas unless no gaps exist
-            if status == "strong" and len(learning_path) >= 3:
+            if status == "strong":
+                # Strong areas need no remediation.
                 continue
 
-            priority_label = "High" if status == "critical_gap" else ("Medium" if status == "needs_improvement" else "Low")
+            priority_label = "High" if status == "critical_gap" else "Medium"
             matching_courses = await IGOTService.search_courses(comp_name)
 
+            added_for_this_competency = 0
             for course in matching_courses:
-                if course["course_id"] not in seen_course_ids:
-                    seen_course_ids.add(course["course_id"])
-                    learning_path.append({
-                        "course_id": course["course_id"],
-                        "course_title": course["title"],
-                        "competency_id": comp_id,
-                        "competency_name": comp_name,
-                        "provider": course["provider"],
-                        "priority": priority_label,
-                        "estimated_duration": course["duration"],
-                        "status": "ASSIGNED"
-                    })
-                    if len(learning_path) >= 5:
-                        break
+                if added_for_this_competency >= MAX_COURSES_PER_COMPETENCY:
+                    break
+                if course["course_id"] in seen_course_ids:
+                    continue
+                seen_course_ids.add(course["course_id"])
+                added_for_this_competency += 1
+                learning_path.append({
+                    "course_id": course["course_id"],
+                    "course_title": course["title"],
+                    "competency_id": comp_id,
+                    "competency_name": comp_name,
+                    "provider": course["provider"],
+                    "priority": priority_label,
+                    "estimated_duration": course["duration"],
+                    "status": "ASSIGNED"
+                })
+
+            if added_for_this_competency == 0:
+                # Visible placeholder. The gap was identified, the catalogue simply has
+                # nothing mapped to it yet - which is itself useful information for an
+                # administrator deciding what NSSTA should commission.
+                learning_path.append({
+                    "course_id": None,
+                    "course_title": f"No mapped course yet for {comp_name}",
+                    "competency_id": comp_id,
+                    "competency_name": comp_name,
+                    "provider": None,
+                    "priority": priority_label,
+                    "estimated_duration": None,
+                    "status": "NO_COURSE_MAPPED"
+                })
 
         return learning_path

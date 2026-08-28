@@ -80,12 +80,13 @@ def get_active_quiz(
     db: Session = Depends(get_db),
     user=Depends(require_role("OFFICIAL", "ADMIN"))
 ):
-    # Fetch questions available for quiz
+    # Only trainer-approved questions may ever be served.
+    #
+    # This previously fell back to db.query(Question).all() when fewer than five
+    # questions were approved, which defeated the entire human-in-the-loop review
+    # gate: any PENDING or even REJECTED question would be served to an officer as
+    # soon as the approved pool was small. An empty quiz is the honest answer.
     questions = db.query(Question).filter(Question.review_status == "APPROVED").all()
-    
-    # If not enough approved, fallback to all questions
-    if len(questions) < 5:
-        questions = db.query(Question).all()
 
     formatted_q = []
     for q in questions[:10]:
@@ -105,7 +106,15 @@ def get_active_quiz(
     return {
         "quiz_id": "active-quiz-session-001",
         "total_questions": len(formatted_q),
-        "questions": formatted_q
+        "questions": formatted_q,
+        # Let the client render an honest empty state instead of guessing why the
+        # list is short. approved_pool_size is the real number of approved questions.
+        "approved_pool_size": len(questions),
+        "message": (
+            None if formatted_q else
+            "No trainer-approved questions are available yet. A trainer must approve "
+            "generated questions before an assessment can be taken."
+        ),
     }
 
 @router.post("/{quiz_id}/submit")
@@ -116,7 +125,28 @@ def submit_quiz(
     user=Depends(require_role("OFFICIAL", "ADMIN"))
 ):
     question_ids = [ans.question_id for ans in request.answers]
+    if not question_ids:
+        raise HTTPException(status_code=400, detail="No answers submitted.")
+
     db_questions = db.query(Question).filter(Question.id.in_(question_ids)).all()
+
+    # Every submitted question must exist and must be approved. Previously an unknown
+    # question_id was silently skipped by the scoring engine while still counting
+    # toward the denominator, so a client could shift its own score by inventing ids.
+    found_ids = {q.id for q in db_questions}
+    unknown = [qid for qid in question_ids if qid not in found_ids]
+    if unknown:
+        raise HTTPException(
+            status_code=400,
+            detail="Unknown question id(s) in submission: %s" % ", ".join(unknown[:5]),
+        )
+
+    not_approved = [q.id for q in db_questions if q.review_status != "APPROVED"]
+    if not_approved:
+        raise HTTPException(
+            status_code=400,
+            detail="Submission contains question(s) that are not trainer-approved.",
+        )
     
     question_dict_list = []
     for q in db_questions:
@@ -127,7 +157,10 @@ def submit_quiz(
             "competency_name": comp.name if comp else "Statistical Methods",
             "domain": comp.domain if comp else "Statistical Competencies",
             "correct_option": q.correct_option,
-            "question_text": q.question_text
+            "question_text": q.question_text,
+            # Needed for difficulty-weighted scoring in CompetencyEngine.
+            "difficulty": q.difficulty,
+            "explanation": q.explanation,
         })
 
     answers_list = [{"question_id": a.question_id, "selected_option": a.selected_option} for a in request.answers]

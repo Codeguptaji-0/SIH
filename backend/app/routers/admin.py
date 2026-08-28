@@ -15,21 +15,16 @@ def get_admin_analytics(
     db: Session = Depends(get_db),
     user=Depends(require_role("ADMIN"))
 ):
+    # Every figure below is a real query result. The previous version substituted
+    # invented baselines (248 officials, 182 assessments, 71.4 average, 37 gaps) when
+    # a count came back zero, so an empty or disconnected database rendered as a busy
+    # one. A judge stopping the backend saw confident numbers that described nothing.
     total_officials = db.query(User).filter(User.role == "OFFICIAL").count()
-    if total_officials == 0:
-        total_officials = 248 # Baseline demo figure
-
     assessments_completed = db.query(QuizAttempt).count()
-    if assessments_completed == 0:
-        assessments_completed = 182
-
-    avg_score = db.query(func.avg(QuizAttempt.overall_score)).scalar()
-    if not avg_score:
-        avg_score = 71.4
-
-    critical_gaps_count = db.query(CompetencyResult).filter(CompetencyResult.status == "critical_gap").count()
-    if critical_gaps_count == 0:
-        critical_gaps_count = 37
+    avg_score = db.query(func.avg(QuizAttempt.overall_score)).scalar() or 0.0
+    critical_gaps_count = (
+        db.query(CompetencyResult).filter(CompetencyResult.status == "critical_gap").count()
+    )
 
     # 1. domain_readiness aggregation query: GROUP BY domain on CompetencyResult
     domain_query = db.query(
@@ -38,15 +33,13 @@ def get_admin_analytics(
     ).join(Competency, CompetencyResult.competency_id == Competency.id)\
      .group_by(Competency.domain).all()
 
-    if domain_query and len(domain_query) > 0:
-        domain_readiness = {row.domain: round(float(row.avg_score), 1) for row in domain_query}
-    else:
-        domain_readiness = {
-            "Statistical Competencies": 64.2,
-            "Technical Competencies": 78.5,
-            "Digital Governance": 82.1,
-            "Behavioural & Managerial": 85.0
-        }
+    # Empty dict when there is no assessment data yet, so the dashboard can show an
+    # honest "no assessments recorded" state instead of four invented readiness bars.
+    domain_readiness = {
+        row.domain: round(float(row.avg_score), 1)
+        for row in domain_query
+        if row.avg_score is not None
+    }
 
     # 2. top_gaps aggregation query: CompetencyResult where status = 'critical_gap'
     top_gaps_query = db.query(
@@ -59,22 +52,16 @@ def get_admin_analytics(
      .order_by(func.count(CompetencyResult.id).desc())\
      .limit(4).all()
 
-    if top_gaps_query and len(top_gaps_query) > 0:
-        top_gaps = [
-            {
-                "competency": row.competency,
-                "gap_percentage": round(100.0 - float(row.avg_score or 50.0), 1),
-                "officials_affected": row.officials_affected
-            }
-            for row in top_gaps_query
-        ]
-    else:
-        top_gaps = [
-            {"competency": "Survey Design & Sampling Methods", "gap_percentage": 42.0, "officials_affected": 84},
-            {"competency": "Statistical Methods & Inference", "gap_percentage": 48.5, "officials_affected": 72},
-            {"competency": "National Accounts & Price Statistics", "gap_percentage": 55.0, "officials_affected": 58},
-            {"competency": "Official Statistics & Data Visualization", "gap_percentage": 68.0, "officials_affected": 32}
-        ]
+    # Real rows only, and no invented 50.0 stand-in for a missing average.
+    top_gaps = [
+        {
+            "competency": row.competency,
+            "gap_percentage": round(100.0 - float(row.avg_score), 1),
+            "officials_affected": row.officials_affected
+        }
+        for row in top_gaps_query
+        if row.avg_score is not None
+    ]
 
     # 3. training_demand aggregation query: count enrolled officials per course in LearningPath
     demand_query = db.query(
@@ -85,24 +72,19 @@ def get_admin_analytics(
      .order_by(func.count(LearningPath.user_id).desc())\
      .limit(4).all()
 
-    if demand_query and len(demand_query) > 0:
-        training_demand = [
-            {
-                "course_title": row.course_title,
-                "enrolled_officials": row.enrolled_officials,
-                "provider": row.provider
-            }
-            for row in demand_query
-        ]
-    else:
-        training_demand = [
-            {"course_title": "Advanced Survey Sampling & Weight Calibration", "enrolled_officials": 84, "provider": "NSSTA TPAC"},
-            {"course_title": "Statistical Inference & Hypothesis Testing in Practice", "enrolled_officials": 72, "provider": "iGOT Karmayogi"},
-            {"course_title": "National Accounts Statistics & Inflation Metrics", "enrolled_officials": 58, "provider": "iGOT Karmayogi"},
-            {"course_title": "SDMX Metadata Standards & Open Data Publishing", "enrolled_officials": 32, "provider": "NSSTA TPAC"}
-        ]
+    training_demand = [
+        {
+            "course_title": row.course_title,
+            "enrolled_officials": row.enrolled_officials,
+            "provider": row.provider
+        }
+        for row in demand_query
+    ]
 
-    # 4. Predictive trend calculation: compare quiz attempts in last 7 days vs previous 7 days
+    # 4. Period-over-period trend: last 7 days vs the 7 days before that.
+    #
+    # Deliberately NOT called predictive. This is a comparison of two past windows; it
+    # forecasts nothing. Timestamps are naive UTC to match how completed_at is stored.
     now = datetime.utcnow()
     last_7_days = now - timedelta(days=7)
     prev_14_days = now - timedelta(days=14)
@@ -123,8 +105,10 @@ def get_admin_analytics(
             else:
                 trend_status = "stable"
         else:
-            trend_status = "trending_up" if "Statistical" in domain_name or "Technical" in domain_name else "stable"
-        
+            # Not enough history in both windows to compare. Say so rather than
+            # guessing "trending_up" from the domain's name.
+            trend_status = "insufficient_data"
+
         domain_trends[domain_name] = trend_status
 
     return AdminAnalyticsResponse(

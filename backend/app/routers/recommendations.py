@@ -102,13 +102,39 @@ def complete_learning_item(
     db: Session = Depends(get_db),
     user=Depends(require_role("OFFICIAL", "ADMIN"))
 ):
-    item = db.query(LearningPath).filter(LearningPath.id == item_id).first()
+    # Object-level ownership check. Filtering on item_id alone let any authenticated
+    # user complete another user's learning item (IDOR), and the "if not item: take
+    # the first row in the table" fallback meant a nonexistent id mutated somebody
+    # else's record instead of returning 404.
+    item = (
+        db.query(LearningPath)
+        .filter(LearningPath.id == item_id, LearningPath.user_id == user.id)
+        .first()
+    )
     if not item:
-        item = db.query(LearningPath).first()
-    
-    if item:
-        item.status = "COMPLETED"
-        db.commit()
+        raise HTTPException(status_code=404, detail="Learning path item not found.")
 
-    return {"status": "success", "message": "Course marked as completed. Progress score updated."}
+    item.status = "COMPLETED"
+    db.commit()
+
+    # Report the progress we actually computed. The old message claimed "Progress
+    # score updated" while updating nothing but this row's status.
+    owned = db.query(LearningPath).filter(LearningPath.user_id == user.id).all()
+    completed = sum(1 for i in owned if i.status == "COMPLETED")
+    total = len(owned)
+    percent = round((completed / total) * 100.0, 1) if total else 0.0
+
+    return {
+        "status": "success",
+        "item_id": item.id,
+        "item_status": item.status,
+        "completed_items": completed,
+        "total_items": total,
+        "completion_percent": percent,
+        "message": (
+            "Marked complete. %d of %d assigned items done (%.1f%%). Competency scores "
+            "are recalculated from assessment attempts, not from course completion."
+            % (completed, total, percent)
+        ),
+    }
 

@@ -77,7 +77,10 @@ class Question(Base):
     correct_option = Column(Integer, nullable=False)
     explanation = Column(Text, nullable=False)
     difficulty = Column(String(10), nullable=False) # easy, medium, hard
-    review_status = Column(String(20), default="APPROVED") # PENDING, APPROVED, REJECTED
+    # Fail CLOSED. A default of "APPROVED" meant any question inserted without an
+    # explicit review_status (a seed row, a script, a future code path) was instantly
+    # servable to officers, silently bypassing trainer review.
+    review_status = Column(String(20), nullable=False, default="PENDING") # PENDING, APPROVED, REJECTED
     source_reference = Column(String(100), nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
 

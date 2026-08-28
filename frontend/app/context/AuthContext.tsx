@@ -18,16 +18,17 @@ export interface UserProfile {
 }
 
 /**
- * Password for the three seeded demo accounts in database/seed.sql.
+ * There is deliberately no password constant in this file.
  *
- * This is a demo convenience so a reviewer can sign in as any persona with one
- * click. It is a published credential for seeded accounts only - anyone can read
- * it in the client bundle, which is inherent to one-click login and is the reason
- * the quick-login buttons must be removed before any real deployment. Real
- * accounts authenticate through the email + password form, which posts to the
- * same endpoint and is subject to the same PBKDF2 verification.
+ * Everything in a client component is compiled into the JavaScript bundle the
+ * browser downloads, so a password written here is not a secret: view-source is
+ * enough to read it and sign in as any account, including ADMIN. This module
+ * previously exported a `DEMO_PASSWORD` and a `loginPersona(email)` helper that
+ * used it, which turned every one-click persona button into a public credential.
+ * Both are gone. The only way to authenticate is `login(email, password)` with a
+ * password the user typed; callers that want a persona may prefill the email
+ * field and nothing more.
  */
-export const DEMO_PASSWORD = 'SkillSetu@2026';
 
 /**
  * Outcome of a sign-in attempt.
@@ -50,7 +51,6 @@ interface AuthContextType {
   /** False until the stored session has been checked, so guards do not fire early. */
   ready: boolean;
   login: (email: string, password: string) => Promise<LoginResult>;
-  loginPersona: (email: string) => Promise<UserProfile | null>;
   logout: () => void;
   getAuthHeaders: () => Record<string, string>;
 }
@@ -60,7 +60,6 @@ const AuthContext = createContext<AuthContextType>({
   token: null,
   ready: false,
   login: async () => ({ ok: false, error: 'Auth provider not mounted' }),
-  loginPersona: async () => null,
   logout: () => {},
   getAuthHeaders: () => ({}),
 });
@@ -73,8 +72,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   /**
    * Restore an existing session on mount.
    *
-   * This replaces an unconditional `loginPersona('official@skillsetu.demo')`
-   * call, which signed everybody in as the same official the moment the app
+   * This replaces an unconditional auto-login as a seeded official, which
+   * signed everybody in as the same user the moment the app
    * loaded. That made the login screen decorative and meant the app was never
    * actually unauthenticated. Now a stored token is validated against
    * GET /api/auth/me, and a token the backend rejects is discarded.
@@ -146,19 +145,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   /**
-   * One-click sign-in for a seeded demo persona.
+   * Revoke the token server-side, then clear it locally.
    *
-   * Kept so the existing call sites keep working; it now delegates to the real
-   * password login rather than posting an email on its own.
+   * Exposed through the context value so any component (e.g. the navbar) can
+   * end the session properly instead of just linking back to /login.
    */
-  const loginPersona = useCallback(
-    async (email: string): Promise<UserProfile | null> => {
-      const result = await login(email, DEMO_PASSWORD);
-      return result.ok && result.user ? result.user : null;
-    },
-    [login]
-  );
-
   const logout = useCallback(async () => {
     const current = getAccessToken();
     if (current) {
@@ -190,7 +181,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   return (
     <AuthContext.Provider
-      value={{ user, token, ready, login, loginPersona, logout, getAuthHeaders }}
+      value={{ user, token, ready, login, logout, getAuthHeaders }}
     >
       {children}
     </AuthContext.Provider>
