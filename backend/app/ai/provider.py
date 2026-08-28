@@ -335,6 +335,24 @@ class MockAIProvider(AIProvider):
 # script asks the API instead of trusting a constant in a file.
 DEFAULT_ANTHROPIC_MODEL = "claude-sonnet-4-20250514"
 
+# Hard ceiling on a single model call, in seconds.
+#
+# Both SDKs default to a 600-second timeout with internal retries. Nothing in this
+# codebase overrode that, so one unreachable provider could hold an HTTP request open
+# for minutes: the assistant widget sat on "Waiting for the server…" with no error to
+# show, because from the browser's point of view the request had not failed - it had
+# not finished. A chat reply that takes longer than this is useless to an officer
+# anyway, so failing fast and falling back is strictly better than waiting.
+#
+# Worst case is now one attempt per provider (retries off), and the fallback provider
+# is allowed exactly one attempt (see allow_fallback), so the whole chain is bounded at
+# roughly 2 x AI_REQUEST_TIMEOUT_SECONDS. That total is kept under ~30s on purpose: the
+# deployed frontend reaches this API through a Vercel rewrite, and the edge proxy in
+# front of it returns its own gateway error if a response takes too long - at which
+# point the reply is lost anyway, so it is better for the fallback to have already run.
+AI_REQUEST_TIMEOUT_SECONDS = 12.0
+AI_REQUEST_MAX_RETRIES = 0
+
 #
 # Everything from here to get_ai_provider() is shared by every live model provider,
 # on purpose. The quality rules in the prompt and the gate that checks the answer
@@ -435,6 +453,8 @@ class OpenAIProvider(AIProvider):
         if b_url:
             kwargs["base_url"] = b_url
         self.model = (model or getattr(settings, "OPENAI_MODEL", "")).strip() or "gpt-4o-mini"
+        kwargs["timeout"] = AI_REQUEST_TIMEOUT_SECONDS
+        kwargs["max_retries"] = AI_REQUEST_MAX_RETRIES
         self.client = openai.OpenAI(**kwargs)
         # Cleared on any instance that is ITSELF a fallback. Without this the two live
         # providers point at each other - OpenAI falls back to Anthropic, Anthropic falls
@@ -522,7 +542,11 @@ class AnthropicProvider(AIProvider):
     def __init__(self, api_key: str, model: str = ""):
         import anthropic
         self.model = (model or DEFAULT_ANTHROPIC_MODEL).strip()
-        self.client = anthropic.Anthropic(api_key=api_key)
+        self.client = anthropic.Anthropic(
+            api_key=api_key,
+            timeout=AI_REQUEST_TIMEOUT_SECONDS,
+            max_retries=AI_REQUEST_MAX_RETRIES,
+        )
         self.allow_fallback = True      # see the note in OpenAIProvider.__init__
 
     @staticmethod

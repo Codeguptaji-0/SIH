@@ -101,6 +101,9 @@ class ChatMessageRequest(BaseModel):
 class ChatMessageResponse(BaseModel):
     reply: str
     sources: List[str] = []
+    # Which engine produced `reply` - a live model or the deterministic fallback.
+    # The officer is entitled to know which one answered before acting on it.
+    engine: str = ""
 
 class AdminAnalyticsResponse(BaseModel):
     total_officials: int

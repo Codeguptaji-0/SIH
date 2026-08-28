@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import { X, Send, Loader2, AlertTriangle } from 'lucide-react';
-import { apiJson, ApiError } from '@/app/lib/api';
+import { apiJson, ApiError, ApiTimeoutError } from '@/app/lib/api';
 
 /**
  * Assistant chat widget.
@@ -13,6 +13,12 @@ import { apiJson, ApiError } from '@/app/lib/api';
  * backend or an AI provider failure all looked like a confident domain answer.
  * The response body was also read with `.json()` without checking `res.ok`,
  * which meant an error payload's missing `reply` rendered as an empty bubble.
+ *
+ * The widget also used to hang on "Thinking…" forever. Nothing bounded the
+ * request: the model SDKs default to a 600-second timeout, so an unreachable
+ * provider held the HTTP call open for minutes with no error to render. Both
+ * ends are now capped (AI_REQUEST_TIMEOUT_SECONDS on the server, DEFAULT_TIMEOUT_MS
+ * in the API helper) and a timeout is reported as a timeout.
  */
 
 interface ChatMessage {
@@ -20,11 +26,14 @@ interface ChatMessage {
   text: string;
   isError?: boolean;
   sources?: string[];
+  /** Which engine produced this reply, as reported by the server. */
+  engine?: string;
 }
 
 interface ChatResponse {
   reply: string;
   sources: string[];
+  engine?: string;
 }
 
 const OPENING_MESSAGE: ChatMessage = {
@@ -59,7 +68,8 @@ export const VirtualAssistantWidget: React.FC = () => {
           {
             sender: 'bot',
             text: data.reply,
-            sources: Array.isArray(data.sources) ? data.sources : undefined
+            sources: Array.isArray(data.sources) ? data.sources : undefined,
+            engine: typeof data.engine === 'string' ? data.engine : undefined
           }
         ]);
       } else {
@@ -75,7 +85,10 @@ export const VirtualAssistantWidget: React.FC = () => {
           sender: 'bot',
           isError: true,
           text:
-            err instanceof ApiError
+            // ApiTimeoutError extends ApiError, so it has to be tested first.
+            err instanceof ApiTimeoutError
+              ? err.message
+              : err instanceof ApiError
               ? `Assistant unavailable (HTTP ${err.status}): ${err.message}`
               : 'Assistant unavailable: the request did not reach the server.'
         }
@@ -136,6 +149,11 @@ export const VirtualAssistantWidget: React.FC = () => {
                     />
                   )}
                   {m.text}
+                  {m.engine && (
+                    <p className="mt-1.5 border-t border-rule pt-1.5 font-mono text-[10px] text-slate-400">
+                      Answered by: {m.engine}
+                    </p>
+                  )}
                   {m.sources && m.sources.length > 0 && (
                     <p className="mt-1.5 border-t border-rule pt-1.5 font-mono text-[10px] text-slate-400">
                       Sources: {m.sources.join('; ')}
