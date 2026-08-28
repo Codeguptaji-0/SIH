@@ -1,6 +1,6 @@
 import uuid
 from datetime import datetime
-from sqlalchemy import Column, String, Integer, Float, Text, DateTime, ForeignKey
+from sqlalchemy import Column, String, Integer, Float, Text, DateTime, ForeignKey, UniqueConstraint
 from sqlalchemy.orm import relationship
 from app.database import Base
 
@@ -43,6 +43,29 @@ class Competency(Base):
     name = Column(String(100), nullable=False)
     description = Column(Text, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
+
+class RoleTarget(Base):
+    """
+    Expected proficiency for a job role on one competency.
+
+    A gap is a shortfall against what the officer's ROLE requires, not against one
+    global pass mark - 62% in Survey Design is a gap for a Statistical Officer running
+    NSS rounds and adequate for someone who never touches sample design. The engine
+    falls back to its absolute thresholds when no target exists for the role, so a
+    missing row degrades the reading rather than breaking it.
+
+    Mirrored in database/schema.sql, which is what init_db.py actually executes.
+    """
+    __tablename__ = "role_targets"
+
+    id = Column(String(36), primary_key=True, default=generate_uuid)
+    job_role = Column(String(100), nullable=False, index=True)
+    competency_id = Column(String(36), ForeignKey("competencies.id", ondelete="CASCADE"), nullable=False)
+    target_score = Column(Float, nullable=False)
+    rationale = Column(Text, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    __table_args__ = (UniqueConstraint("job_role", "competency_id", name="uq_role_target"),)
 
 class Document(Base):
     __tablename__ = "documents"

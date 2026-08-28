@@ -31,6 +31,24 @@ CREATE TABLE IF NOT EXISTS competencies (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
+-- Expected proficiency per job role, per competency. The point of this table is that
+-- a gap is a shortfall against what the officer's ROLE requires, not against a single
+-- global pass mark: 62% in Survey Design is a gap for a Statistical Officer running
+-- NSS rounds and perfectly adequate for an administrative officer who never touches
+-- sample design. Without it, "competency gap" collapses into "low score", which is a
+-- weaker answer to the problem statement.
+-- UNIQUE(job_role, competency_id) so a role cannot carry two contradictory targets.
+CREATE TABLE IF NOT EXISTS role_targets (
+    id VARCHAR(36) PRIMARY KEY,
+    job_role VARCHAR(100) NOT NULL,
+    competency_id VARCHAR(36) NOT NULL,
+    target_score FLOAT NOT NULL CHECK (target_score > 0 AND target_score <= 100),
+    rationale TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE (job_role, competency_id),
+    FOREIGN KEY (competency_id) REFERENCES competencies(id) ON DELETE CASCADE
+);
+
 CREATE TABLE IF NOT EXISTS documents (
     id VARCHAR(36) PRIMARY KEY,
     title VARCHAR(255) NOT NULL,
