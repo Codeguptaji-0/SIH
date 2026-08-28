@@ -436,6 +436,12 @@ class OpenAIProvider(AIProvider):
             kwargs["base_url"] = b_url
         self.model = (model or getattr(settings, "OPENAI_MODEL", "")).strip() or "gpt-4o-mini"
         self.client = openai.OpenAI(**kwargs)
+        # Cleared on any instance that is ITSELF a fallback. Without this the two live
+        # providers point at each other - OpenAI falls back to Anthropic, Anthropic falls
+        # back to OpenAI - and with both keys set and both providers failing that is
+        # unbounded mutual recursion: hundreds of real HTTP calls, a request that hangs
+        # for minutes, and only then the mock. One attempt per alternate is the rule.
+        self.allow_fallback = True
 
     def generate_mcqs(self, text_chunks: List[str], count: int = 5) -> List[Dict[str, Any]]:
         label = "OpenAI (%s)" % self.model
@@ -451,10 +457,11 @@ class OpenAIProvider(AIProvider):
             return parse_mcq_response(response.choices[0].message.content, label)
         except Exception as e:
             print(f"[AI ERROR] OpenAI generation failed ({self.model}): {e}.")
-            if settings.ANTHROPIC_API_KEY:
+            if settings.ANTHROPIC_API_KEY and self.allow_fallback:
                 try:
                     print(f"[AI FALLBACK] Attempting secondary provider (Anthropic)...")
                     alt = AnthropicProvider(settings.ANTHROPIC_API_KEY, settings.ANTHROPIC_MODEL)
+                    alt.allow_fallback = False
                     res = alt.generate_mcqs(text_chunks, count)
                     if res:
                         return res
@@ -476,10 +483,11 @@ class OpenAIProvider(AIProvider):
             return response.choices[0].message.content.strip()
         except Exception as e:
             print(f"[AI ERROR] OpenAI chat failed ({self.model}): {e}.")
-            if settings.ANTHROPIC_API_KEY:
+            if settings.ANTHROPIC_API_KEY and self.allow_fallback:
                 try:
                     print(f"[AI FALLBACK] Attempting secondary provider (Anthropic)...")
                     alt = AnthropicProvider(settings.ANTHROPIC_API_KEY, settings.ANTHROPIC_MODEL)
+                    alt.allow_fallback = False
                     res = alt.generate_chat_response(prompt)
                     if res:
                         return res
@@ -492,12 +500,30 @@ class OpenAIProvider(AIProvider):
 class AnthropicProvider(AIProvider):
     """
     Claude, through the Anthropic Messages API.
+
+    Three things differ from the OpenAI path and each one is a real API difference,
+    not a preference:
+
+      * `max_tokens` is REQUIRED. Omit it and the request is rejected before the model
+        sees it. 4096 is sized for a batch of MCQs with explanations; a short cap here
+        truncates the JSON array mid-object and the parse fails with what looks like a
+        model quality problem.
+      * The system prompt is its own top-level `system=` argument, not a message with
+        role "system".
+      * The reply is a LIST of content blocks, not one string. Only blocks of type
+        "text" carry the answer, so _text_of joins those and ignores anything else -
+        which is what keeps this working if a model returns other block types.
+
+    The model ID is injected rather than hardcoded because those IDs are dated strings
+    that change faster than this file does. `python check_anthropic.py` prints the ones
+    a given key can actually see.
     """
 
     def __init__(self, api_key: str, model: str = ""):
         import anthropic
         self.model = (model or DEFAULT_ANTHROPIC_MODEL).strip()
         self.client = anthropic.Anthropic(api_key=api_key)
+        self.allow_fallback = True      # see the note in OpenAIProvider.__init__
 
     @staticmethod
     def _text_of(response: Any) -> str:
@@ -524,10 +550,11 @@ class AnthropicProvider(AIProvider):
             return parse_mcq_response(self._text_of(response), label)
         except Exception as e:
             print("[AI ERROR] %s MCQ generation failed: %s: %s." % (label, type(e).__name__, e))
-            if settings.OPENAI_API_KEY:
+            if settings.OPENAI_API_KEY and self.allow_fallback:
                 try:
                     print("[AI FALLBACK] Attempting secondary provider (OpenAI)...")
                     alt = OpenAIProvider(settings.OPENAI_API_KEY, settings.OPENAI_BASE_URL, settings.OPENAI_MODEL)
+                    alt.allow_fallback = False
                     res = alt.generate_mcqs(text_chunks, count)
                     if res:
                         return res
@@ -551,10 +578,11 @@ class AnthropicProvider(AIProvider):
             return text
         except Exception as e:
             print("[AI ERROR] Claude (%s) chat failed: %s: %s." % (self.model, type(e).__name__, e))
-            if settings.OPENAI_API_KEY:
+            if settings.OPENAI_API_KEY and self.allow_fallback:
                 try:
                     print("[AI FALLBACK] Attempting secondary provider (OpenAI)...")
                     alt = OpenAIProvider(settings.OPENAI_API_KEY, settings.OPENAI_BASE_URL, settings.OPENAI_MODEL)
+                    alt.allow_fallback = False
                     res = alt.generate_chat_response(prompt)
                     if res:
                         return res
