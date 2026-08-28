@@ -62,7 +62,12 @@ CREATE TABLE IF NOT EXISTS questions (
     correct_option INTEGER NOT NULL, -- 0 to 3
     explanation TEXT NOT NULL,
     difficulty VARCHAR(10) NOT NULL CHECK (difficulty IN ('easy', 'medium', 'hard')),
-    review_status VARCHAR(20) DEFAULT 'APPROVED', -- PENDING, APPROVED, REJECTED
+    -- Fail CLOSED, matching backend/app/models/models.py. init_db.py builds the
+    -- database from this file, not from the SQLAlchemy models, so a default of
+    -- 'APPROVED' here meant every seeded or scripted row was instantly servable
+    -- to officers and trainer review was bypassed in the actual demo database.
+    review_status VARCHAR(20) NOT NULL DEFAULT 'PENDING'
+        CHECK (review_status IN ('PENDING', 'APPROVED', 'REJECTED')),
     source_reference VARCHAR(100),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (document_id) REFERENCES documents(id) ON DELETE SET NULL,
@@ -114,4 +119,28 @@ CREATE TABLE IF NOT EXISTS audit_logs (
     action VARCHAR(100) NOT NULL,
     details TEXT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Server-side state for adaptive assessment runs. Held here rather than in the
+-- client so the browser cannot choose its own difficulty and then report a score.
+CREATE TABLE IF NOT EXISTS adaptive_sessions (
+    id VARCHAR(36) PRIMARY KEY,
+    user_id VARCHAR(36) NOT NULL,
+    current_level VARCHAR(10) NOT NULL DEFAULT 'medium'
+        CHECK (current_level IN ('easy', 'medium', 'hard')),
+    consecutive_correct INTEGER NOT NULL DEFAULT 0,
+    consecutive_wrong INTEGER NOT NULL DEFAULT 0,
+    answered_count INTEGER NOT NULL DEFAULT 0,
+    correct_count INTEGER NOT NULL DEFAULT 0,
+    max_questions INTEGER NOT NULL DEFAULT 10,
+    served_json TEXT NOT NULL DEFAULT '[]',
+    trail_json TEXT NOT NULL DEFAULT '[]',
+    status VARCHAR(20) NOT NULL DEFAULT 'ACTIVE'
+        CHECK (status IN ('ACTIVE', 'COMPLETED', 'ABANDONED')),
+    attempt_id VARCHAR(36),
+    started_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    completed_at TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    FOREIGN KEY (attempt_id) REFERENCES quiz_attempts(id) ON DELETE SET NULL
 );

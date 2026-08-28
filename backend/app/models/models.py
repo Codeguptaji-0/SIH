@@ -129,3 +129,32 @@ class AuditLog(Base):
     action = Column(String(100), nullable=False)
     details = Column(Text, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
+
+class AdaptiveSession(Base):
+    """
+    Server-side state for one adaptive assessment run.
+
+    The current level, the streak counters and the full ladder trail live here
+    rather than in the client. That matters twice over. For integrity, because a
+    browser that owned this state could walk itself down to easy questions and
+    then report a high score. And for auditability, because every rung of the
+    ladder can be replayed later from trail_json together with the reason string
+    that produced it, which is what a government audit actually asks for.
+    """
+    __tablename__ = "adaptive_sessions"
+
+    id = Column(String(36), primary_key=True, default=generate_uuid)
+    user_id = Column(String(36), ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    current_level = Column(String(10), nullable=False, default="medium")
+    consecutive_correct = Column(Integer, nullable=False, default=0)
+    consecutive_wrong = Column(Integer, nullable=False, default=0)
+    answered_count = Column(Integer, nullable=False, default=0)
+    correct_count = Column(Integer, nullable=False, default=0)
+    max_questions = Column(Integer, nullable=False, default=10)
+    served_json = Column(Text, nullable=False, default="[]")   # question ids already served
+    trail_json = Column(Text, nullable=False, default="[]")    # one entry per answered question
+    status = Column(String(20), nullable=False, default="ACTIVE")  # ACTIVE, COMPLETED, ABANDONED
+    attempt_id = Column(String(36), ForeignKey("quiz_attempts.id", ondelete="SET NULL"), nullable=True)
+    started_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow)
+    completed_at = Column(DateTime, nullable=True)

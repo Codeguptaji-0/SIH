@@ -111,3 +111,11 @@ class AdminAnalyticsResponse(BaseModel):
     domain_trends: Optional[dict] = None
     top_gaps: List[dict]
     training_demand: List[dict]
+
+class AdaptiveStartRequest(BaseModel):
+    max_questions: int = 10
+    starting_level: str = "medium"
+
+class AdaptiveAnswerRequest(BaseModel):
+    question_id: str
+    selected_option: int
