@@ -78,9 +78,28 @@ python init_db.py
 ```bash
 cd backend
 pip install -r requirements.txt
-uvicorn app.main:app --port 8000 --reload
+python -m uvicorn app.main:app --port 8000 --reload
 ```
 *Backend API docs available at `http://localhost:8000/docs`*
+
+> Start it as `python -m uvicorn`, not bare `uvicorn`. The `uvicorn` launcher on
+> PATH can belong to a different Python installation than `python`/`pip`, so
+> `pip install -r requirements.txt` may satisfy one interpreter while the server
+> runs on another. `python -m` guarantees both are the same.
+
+### 2b. Verify the adaptive assessment end to end
+```bash
+cd backend
+python smoke_adaptive.py
+```
+*Asserts the difficulty ladder over real HTTP: two consecutive correct answers must
+step the level up, two consecutive incorrect must step it down, a single answer must
+not move it, served questions must not leak the correct option, and another account
+must not be able to read the session. Exits non-zero if any of that stops being true.*
+
+*If `/api/auth/login` ever returns HTTP 500, run `python diag_login.py` — it walks
+the login path in six widening stages and prints the real traceback for the one
+that breaks.*
 
 ### 3. Start Frontend UI (Port 3000)
 ```bash

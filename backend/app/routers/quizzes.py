@@ -524,8 +524,13 @@ def answer_adaptive_question(
         "correct_option": q.correct_option,
         "is_correct": is_correct,
         "level_before": level_before,
+        # level_after is the rung the run actually continues from; ladder_decision is
+        # the engine's own verdict. They differ only when the approved pool cannot
+        # supply the decided level, and keeping both is what makes the trail replayable.
         "level_after": next_level,
+        "ladder_decision": next_level,
         "adaptation_reason": reason,
+        "level_substituted": False,
     })
 
     finished = session_row.answered_count >= session_row.max_questions
@@ -542,7 +547,24 @@ def answer_adaptive_question(
             served.append(next_q.id)
             next_payload = _serve_payload(db, next_q)
             if substituted:
+                # The engine decided next_level, but no unseen approved question remained
+                # in that band, so a different one was served. Previously only the served
+                # level was reported, which made adaptation_reason contradict level_after
+                # on screen - "hard -> easy" captioned "Holding at 'hard'." - and made the
+                # replayed trail disagree with the live response, because the trail stored
+                # the decision while the response stored the substitution. Now the
+                # engine's verdict is preserved in ladder_decision, the served band becomes
+                # the rung the next decision is measured from, and the reason says so.
                 session_row.current_level = next_q.difficulty
+                article = "an" if next_q.difficulty[:1].lower() in "aeiou" else "a"
+                reason = (
+                    "%s No unseen approved '%s' question remained, so %s '%s' one was served "
+                    "instead and the ladder now measures from '%s'."
+                    % (reason, next_level, article, next_q.difficulty, next_q.difficulty)
+                )
+                trail[-1]["level_after"] = next_q.difficulty
+                trail[-1]["adaptation_reason"] = reason
+                trail[-1]["level_substituted"] = True
 
     session_row.served_json = json.dumps(served)
     session_row.trail_json = json.dumps(trail)
@@ -564,6 +586,7 @@ def answer_adaptive_question(
         "ladder": {
             "level_before": level_before,
             "level_after": session_row.current_level,
+            "ladder_decision": next_level,
             "adaptation_reason": reason,
             "consecutive_correct": session_row.consecutive_correct,
             "consecutive_wrong": session_row.consecutive_wrong,
