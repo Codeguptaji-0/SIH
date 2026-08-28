@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { Navbar } from '@/components/Navbar';
 import { Sidebar } from '@/components/Sidebar';
 import { WowTransitionModal } from '@/components/WowTransitionModal';
-import { ArrowRight, ArrowLeft, CheckCircle2, AlertTriangle, Inbox, Loader2 } from 'lucide-react';
+import { ArrowRight, ArrowLeft, CheckCircle2, XCircle, AlertTriangle, Inbox, Loader2, Target, BookOpen } from 'lucide-react';
 import { apiJson, ApiError } from '@/app/lib/api';
 
 /**
@@ -42,6 +42,56 @@ interface ActiveQuizResponse {
   message: string | null;
 }
 
+/**
+ * The submit response. Every field here is returned by
+ * POST /api/quizzes/{quiz_id}/submit - nothing on this screen is computed in the
+ * browser, because a score the client invents is a score nobody can audit.
+ *
+ * answer_review carries the correct option and the stored explanation for each
+ * answered question. The backend always held these and used to discard them, so an
+ * officer was given a percentage and never told what was actually wrong.
+ */
+interface AnswerReviewItem {
+  question_id: string;
+  question_text: string;
+  competency_name: string;
+  difficulty: string;
+  options: string[];
+  selected_option: number | null;
+  selected_text: string | null;
+  correct_option: number;
+  correct_text: string | null;
+  is_correct: boolean;
+  explanation: string;
+}
+
+interface CompetencyResultItem {
+  competency_id: string;
+  competency_name: string;
+  domain: string;
+  score: number;
+  status: string;
+  benchmark: string;
+  target_score: number | null;
+  gap_points: number;
+  priority: number;
+  evidence: string;
+}
+
+interface SubmitResponse {
+  attempt_id: string;
+  overall_score: number;
+  raw_score: number;
+  scoring_method: string;
+  banding_method: string;
+  job_role: string | null;
+  role_targets_applied: number;
+  total_questions: number;
+  correct_answers: number;
+  results: CompetencyResultItem[];
+  answer_review: AnswerReviewItem[];
+}
+
 export default function AdaptiveQuizPage() {
   const router = useRouter();
   const [questions, setQuestions] = useState<QuizQuestion[]>([]);
@@ -55,6 +105,7 @@ export default function AdaptiveQuizPage() {
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showWowModal, setShowWowModal] = useState(false);
+  const [review, setReview] = useState<SubmitResponse | null>(null);
 
   const loadQuiz = useCallback(async () => {
     setLoading(true);
@@ -124,10 +175,11 @@ export default function AdaptiveQuizPage() {
     setIsSubmitting(true);
     setSubmitError(null);
     try {
-      await apiJson(`/api/quizzes/${encodeURIComponent(quizId)}/submit`, {
+      const data = await apiJson<SubmitResponse>(`/api/quizzes/${encodeURIComponent(quizId)}/submit`, {
         method: 'POST',
         body: JSON.stringify({ answers: payloadAnswers })
       });
+      setReview(data);
       setShowWowModal(true);
     } catch (err) {
       setSubmitError(
@@ -140,8 +192,14 @@ export default function AdaptiveQuizPage() {
     }
   };
 
+  // The review screen only appears because the server sent one. If the response
+  // somehow carried no per-question review, go straight to the analysis page rather
+  // than rendering an empty "what you got wrong" panel.
   const handleWowModalComplete = () => {
-    router.push('/dashboard/results');
+    setShowWowModal(false);
+    if (!review || review.answer_review.length === 0) {
+      router.push('/dashboard/results');
+    }
   };
 
   const answeredCount = Object.keys(userAnswers).length;
@@ -206,7 +264,7 @@ export default function AdaptiveQuizPage() {
             </div>
           )}
 
-          {!loading && !loadError && questions.length > 0 && (
+          {!loading && !loadError && questions.length > 0 && !review && (
             <QuizRunner
               questions={questions}
               currentIndex={currentIndex}
@@ -218,6 +276,13 @@ export default function AdaptiveQuizPage() {
               onPrev={handlePrev}
               onNext={handleNext}
               onSubmit={handleSubmitQuiz}
+            />
+          )}
+
+          {review && !showWowModal && (
+            <SubmissionReview
+              data={review}
+              onContinue={() => router.push('/dashboard/results')}
             />
           )}
         </main>
@@ -398,5 +463,159 @@ function QuizRunner({
         )}
       </div>
     </>
+  );
+}
+
+const STATUS_STYLES: Record<string, string> = {
+  strong: 'bg-emerald-100 text-emerald-800 border-emerald-200',
+  needs_improvement: 'bg-amber-100 text-amber-800 border-amber-200',
+  critical_gap: 'bg-rose-100 text-rose-800 border-rose-200'
+};
+
+/**
+ * Post-submission review.
+ *
+ * Everything rendered here comes from the submit response: the score, the banding,
+ * the role target each competency was judged against, and the stored explanation for
+ * each question. Nothing is recomputed in the browser.
+ */
+function SubmissionReview({
+  data,
+  onContinue
+}: {
+  data: SubmitResponse;
+  onContinue: () => void;
+}) {
+  const results = Array.isArray(data.results) ? data.results : [];
+  const answers = Array.isArray(data.answer_review) ? data.answer_review : [];
+  const ordered = [...results].sort(
+    (a, b) => (a.priority === 0 ? 999 : a.priority) - (b.priority === 0 ? 999 : b.priority)
+  );
+
+  return (
+    <div className="space-y-6">
+      <div className="bg-white p-6 sm:p-8 rounded-3xl border border-slate-200 shadow-sm space-y-4">
+        <div className="flex items-start justify-between gap-4 flex-wrap">
+          <div>
+            <div className="text-xs font-mono text-blue-600 font-bold">ASSESSMENT SCORED</div>
+            <h2 className="text-lg font-bold text-slate-900 mt-0.5">
+              {data.overall_score}% competency score
+            </h2>
+            <p className="text-xs text-slate-500 mt-1">
+              {data.correct_answers} of {data.total_questions} answered correctly (raw{' '}
+              {data.raw_score}%). Weighted by difficulty: {data.scoring_method}.
+            </p>
+          </div>
+          <div className="text-[11px] font-mono text-slate-400 text-right">
+            attempt {data.attempt_id.slice(0, 8)}
+          </div>
+        </div>
+
+        <div className="border-t border-slate-100 pt-4 flex items-start gap-2 text-xs text-slate-600">
+          <Target className="w-4 h-4 text-blue-600 flex-shrink-0 mt-0.5" aria-hidden="true" />
+          <p className="leading-relaxed">
+            {data.job_role && data.role_targets_applied > 0 ? (
+              <>
+                Banded against the proficiency targets for{' '}
+                <span className="font-bold text-slate-800">{data.job_role}</span> on{' '}
+                {data.role_targets_applied} of {results.length} competencies. A shortfall here means
+                a shortfall against what this role requires, not against a single pass mark.
+              </>
+            ) : (
+              <>
+                No proficiency targets are defined for this job role yet, so standard thresholds were
+                applied: {data.banding_method}.
+              </>
+            )}
+          </p>
+        </div>
+      </div>
+      {ordered.length > 0 && (
+        <div className="bg-white rounded-3xl border border-slate-200 shadow-sm divide-y divide-slate-100">
+          <div className="p-5 text-sm font-bold text-slate-800">Competency breakdown</div>
+          {ordered.map((r) => (
+            <div key={r.competency_id} className="p-5 space-y-2">
+              <div className="flex items-center justify-between gap-3 flex-wrap">
+                <div className="text-xs font-bold text-slate-800">{r.competency_name}</div>
+                <div className="flex items-center gap-2">
+                  <span className="text-[11px] font-mono text-slate-500">
+                    {r.score}%
+                    {r.target_score !== null && <> / target {r.target_score}%</>}
+                  </span>
+                  <span
+                    className={`text-[10px] font-bold px-2.5 py-1 rounded-full border uppercase font-mono ${
+                      STATUS_STYLES[r.status] ?? 'bg-slate-100 text-slate-700 border-slate-200'
+                    }`}
+                  >
+                    {r.status.replace(/_/g, ' ')}
+                  </span>
+                </div>
+              </div>
+              <p className="text-[11px] text-slate-600 leading-relaxed">{r.evidence}</p>
+              <div className="text-[10px] font-mono text-slate-400 uppercase">
+                {r.benchmark === 'role_target' ? 'benchmark: role target' : 'benchmark: standard threshold'}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+      {answers.length > 0 && (
+        <div className="bg-white rounded-3xl border border-slate-200 shadow-sm divide-y divide-slate-100">
+          <div className="p-5 flex items-center gap-2">
+            <BookOpen className="w-4 h-4 text-blue-600" aria-hidden="true" />
+            <span className="text-sm font-bold text-slate-800">
+              Question review ({answers.filter((a) => !a.is_correct).length} to revisit)
+            </span>
+          </div>
+          {answers.map((a, i) => (
+            <div key={a.question_id} className="p-5 space-y-3">
+              <div className="flex items-start gap-3">
+                {a.is_correct ? (
+                  <CheckCircle2 className="w-4 h-4 text-emerald-600 flex-shrink-0 mt-0.5" aria-hidden="true" />
+                ) : (
+                  <XCircle className="w-4 h-4 text-rose-600 flex-shrink-0 mt-0.5" aria-hidden="true" />
+                )}
+                <div className="space-y-1 min-w-0">
+                  <div className="text-[10px] font-mono uppercase text-slate-400">
+                    Q{i + 1} &middot; {a.competency_name} &middot; {a.difficulty}
+                  </div>
+                  <p className="text-xs font-bold text-slate-900 leading-snug">{a.question_text}</p>
+                </div>
+              </div>
+
+              <div className="pl-7 space-y-1 text-[11px]">
+                <div className={a.is_correct ? 'text-emerald-700' : 'text-rose-700'}>
+                  Your answer: <span className="font-semibold">{a.selected_text ?? 'not answered'}</span>
+                </div>
+                {!a.is_correct && a.correct_text && (
+                  <div className="text-emerald-700">
+                    Correct answer: <span className="font-semibold">{a.correct_text}</span>
+                  </div>
+                )}
+              </div>
+
+              {a.explanation && (
+                <div className="pl-7">
+                  <div className="bg-slate-50 border border-slate-200 rounded-2xl p-3 text-[11px] text-slate-700 leading-relaxed">
+                    <span className="font-bold text-slate-800">Why: </span>
+                    {a.explanation}
+                  </div>
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+
+      <div className="flex justify-end">
+        <button
+          type="button"
+          onClick={onContinue}
+          className="px-7 py-3 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-extrabold shadow-lg shadow-blue-600/30 transition-all flex items-center gap-2"
+        >
+          View full competency analysis <ArrowRight className="w-4 h-4" aria-hidden="true" />
+        </button>
+      </div>
+    </div>
   );
 }

@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 from app.database import get_db
 from app.models.models import (
     Document, DocumentChunk, Question, Competency, QuizAttempt, CompetencyResult,
-    AdaptiveSession, AuditLog,
+    AdaptiveSession, AuditLog, Profile, RoleTarget,
 )
 from app.schemas.schemas import (
     QuizGenerateRequest, QuizSubmitRequest, AdaptiveStartRequest, AdaptiveAnswerRequest,
@@ -19,6 +19,34 @@ from app.competency.engine import CompetencyEngine
 from app.auth.dependencies import require_role
 
 router = APIRouter(prefix="/api/quizzes", tags=["Quizzes"])
+
+
+def _options_of(q: Question) -> list:
+    """Stored options as a list. A malformed row degrades to [] rather than a 500."""
+    try:
+        parsed = json.loads(q.options_json or "[]")
+        return parsed if isinstance(parsed, list) else []
+    except (ValueError, TypeError):
+        return []
+
+
+def _role_context(db: Session, user):
+    """
+    The officer's job role and the proficiency targets that role declares.
+
+    Returns (job_role, {competency_id: target_score}). An empty mapping is a
+    legitimate answer, not an error: CompetencyEngine then bands on its absolute
+    thresholds, so an officer whose role has no targets seeded still receives a
+    scored, banded result. This is what makes a gap a shortfall against the ROLE
+    rather than against one global pass mark.
+    """
+    profile = db.query(Profile).filter(Profile.user_id == user.id).first()
+    job_role = (profile.job_role if profile else None) or None
+    if not job_role:
+        return None, {}
+    rows = db.query(RoleTarget).filter(RoleTarget.job_role == job_role).all()
+    return job_role, {r.competency_id: r.target_score for r in rows}
+
 
 @router.post("/generate")
 def generate_quiz(
@@ -168,12 +196,17 @@ def submit_quiz(
             # Needed for difficulty-weighted scoring in CompetencyEngine.
             "difficulty": q.difficulty,
             "explanation": q.explanation,
+            "options": _options_of(q),
         })
 
     answers_list = [{"question_id": a.question_id, "selected_option": a.selected_option} for a in request.answers]
 
-    # Evaluate performance using CompetencyEngine
-    eval_result = CompetencyEngine.evaluate_quiz(answers_list, question_dict_list)
+    # Evaluate performance using CompetencyEngine, banded against what this officer's
+    # job role actually requires wherever a target exists for the competency.
+    job_role, role_targets = _role_context(db, user)
+    eval_result = CompetencyEngine.evaluate_quiz(
+        answers_list, question_dict_list, role_targets=role_targets, job_role=job_role
+    )
 
     # Save Attempt
     attempt = QuizAttempt(
@@ -202,9 +235,19 @@ def submit_quiz(
     return {
         "attempt_id": attempt.id,
         "overall_score": attempt.overall_score,
+        "raw_score": eval_result["raw_score"],
+        "scoring_method": eval_result["scoring_method"],
+        "banding_method": eval_result["banding_method"],
+        "job_role": eval_result["job_role"],
+        "role_targets_applied": eval_result["role_targets_applied"],
         "total_questions": attempt.total_questions,
         "correct_answers": attempt.correct_answers,
-        "results": eval_result["competency_results"]
+        "results": eval_result["competency_results"],
+        # The explanation was stored on every question and collected by this endpoint,
+        # then discarded. An officer was told a score and never told what was wrong,
+        # which is the opposite of a learning platform. Safe to return here because the
+        # answers have already been submitted and scored.
+        "answer_review": eval_result["answer_review"],
     }
 
 
@@ -296,12 +339,16 @@ def _finalise_adaptive(db: Session, user, session_row: AdaptiveSession, trail: L
             "question_text": dq.question_text,
             "difficulty": dq.difficulty,
             "explanation": dq.explanation,
+            "options": _options_of(dq),
         })
 
     answers = [
         {"question_id": e["question_id"], "selected_option": e["selected_option"]} for e in trail
     ]
-    eval_result = CompetencyEngine.evaluate_quiz(answers, question_dicts)
+    job_role, role_targets = _role_context(db, user)
+    eval_result = CompetencyEngine.evaluate_quiz(
+        answers, question_dicts, role_targets=role_targets, job_role=job_role
+    )
 
     attempt = QuizAttempt(
         id=str(uuid.uuid4()),
