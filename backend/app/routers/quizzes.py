@@ -279,6 +279,7 @@ def submit_quiz(
         overall_score=eval_result["overall_score"]
     )
     db.add(attempt)
+    db.flush()
 
     for cr in eval_result["competency_results"]:
         c_res = CompetencyResult(
@@ -444,6 +445,7 @@ def _finalise_adaptive(db: Session, user, session_row: AdaptiveSession, trail: L
         overall_score=eval_result["overall_score"],
     )
     db.add(attempt)
+    db.flush()
 
     for cr in eval_result["competency_results"]:
         db.add(CompetencyResult(
