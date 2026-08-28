@@ -21,6 +21,8 @@ class Settings(BaseSettings):
     # this to one of them rather than trusting the default below.
     AI_PROVIDER: str = ""
     OPENAI_API_KEY: str = ""
+    OPENAI_BASE_URL: str = ""
+    OPENAI_MODEL: str = ""
     ANTHROPIC_API_KEY: str = ""
     ANTHROPIC_MODEL: str = ""
     DATABASE_URL: str = "sqlite:///./skillsetu.db"

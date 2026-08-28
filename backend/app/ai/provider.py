@@ -428,29 +428,45 @@ def parse_mcq_response(raw_content: str, provider_label: str) -> List[Dict[str, 
 
 
 class OpenAIProvider(AIProvider):
-    def __init__(self, api_key: str):
+    def __init__(self, api_key: str, base_url: str = "", model: str = ""):
         import openai
-        self.client = openai.OpenAI(api_key=api_key)
+        kwargs = {"api_key": api_key}
+        b_url = (base_url or getattr(settings, "OPENAI_BASE_URL", "")).strip()
+        if b_url:
+            kwargs["base_url"] = b_url
+        self.model = (model or getattr(settings, "OPENAI_MODEL", "")).strip() or "gpt-4o-mini"
+        self.client = openai.OpenAI(**kwargs)
 
     def generate_mcqs(self, text_chunks: List[str], count: int = 5) -> List[Dict[str, Any]]:
+        label = "OpenAI (%s)" % self.model
         try:
             response = self.client.chat.completions.create(
-                model="gpt-4o-mini",
+                model=self.model,
                 messages=[
                     {"role": "system", "content": MCQ_SYSTEM_PROMPT},
                     {"role": "user", "content": build_mcq_prompt(text_chunks, count)},
                 ],
                 temperature=0.3
             )
-            return parse_mcq_response(response.choices[0].message.content, "OpenAI gpt-4o-mini")
+            return parse_mcq_response(response.choices[0].message.content, label)
         except Exception as e:
-            print(f"[AI ERROR] OpenAI generation failed: {e}. Switching to MockAIProvider.")
+            print(f"[AI ERROR] OpenAI generation failed ({self.model}): {e}.")
+            if settings.ANTHROPIC_API_KEY:
+                try:
+                    print(f"[AI FALLBACK] Attempting secondary provider (Anthropic)...")
+                    alt = AnthropicProvider(settings.ANTHROPIC_API_KEY, settings.ANTHROPIC_MODEL)
+                    res = alt.generate_mcqs(text_chunks, count)
+                    if res:
+                        return res
+                except Exception as fb_err:
+                    print(f"[AI ERROR] Secondary Anthropic provider failed: {fb_err}.")
+            print("Switching to MockAIProvider.")
             return MockAIProvider().generate_mcqs(text_chunks, count)
 
     def generate_chat_response(self, prompt: str) -> str:
         try:
             response = self.client.chat.completions.create(
-                model="gpt-4o-mini",
+                model=self.model,
                 messages=[
                     {"role": "system", "content": ASSISTANT_SYSTEM_PROMPT},
                     {"role": "user", "content": prompt}
@@ -459,30 +475,23 @@ class OpenAIProvider(AIProvider):
             )
             return response.choices[0].message.content.strip()
         except Exception as e:
-            print(f"[AI ERROR] OpenAI chat failed: {e}. Switching to MockAIProvider.")
+            print(f"[AI ERROR] OpenAI chat failed ({self.model}): {e}.")
+            if settings.ANTHROPIC_API_KEY:
+                try:
+                    print(f"[AI FALLBACK] Attempting secondary provider (Anthropic)...")
+                    alt = AnthropicProvider(settings.ANTHROPIC_API_KEY, settings.ANTHROPIC_MODEL)
+                    res = alt.generate_chat_response(prompt)
+                    if res:
+                        return res
+                except Exception as fb_err:
+                    print(f"[AI ERROR] Secondary Anthropic provider failed: {fb_err}.")
+            print("Switching to MockAIProvider.")
             return MockAIProvider().generate_chat_response(prompt)
 
 
 class AnthropicProvider(AIProvider):
     """
     Claude, through the Anthropic Messages API.
-
-    Three things differ from the OpenAI path and each one is a real API difference,
-    not a preference:
-
-      * `max_tokens` is REQUIRED. Omit it and the request is rejected before the model
-        sees it. 4096 is sized for a batch of MCQs with explanations; a short cap here
-        truncates the JSON array mid-object and the parse fails with what looks like a
-        model quality problem.
-      * The system prompt is its own top-level `system=` argument, not a message with
-        role "system".
-      * The reply is a LIST of content blocks, not one string. Only blocks of type
-        "text" carry the answer, so _text_of joins those and ignores anything else -
-        which is what keeps this working if a model returns other block types.
-
-    The model ID is injected rather than hardcoded because those IDs are dated strings
-    that change faster than this file does. `python check_anthropic.py` prints the ones
-    a given key can actually see.
     """
 
     def __init__(self, api_key: str, model: str = ""):
@@ -514,10 +523,17 @@ class AnthropicProvider(AIProvider):
             )
             return parse_mcq_response(self._text_of(response), label)
         except Exception as e:
-            # Loud, and named. A quiet fallback here is why a wrong model ID or an
-            # expired key used to look like "the AI is a bit generic today".
-            print("[AI ERROR] %s MCQ generation failed: %s: %s. Switching to "
-                  "MockAIProvider." % (label, type(e).__name__, e))
+            print("[AI ERROR] %s MCQ generation failed: %s: %s." % (label, type(e).__name__, e))
+            if settings.OPENAI_API_KEY:
+                try:
+                    print("[AI FALLBACK] Attempting secondary provider (OpenAI)...")
+                    alt = OpenAIProvider(settings.OPENAI_API_KEY, settings.OPENAI_BASE_URL, settings.OPENAI_MODEL)
+                    res = alt.generate_mcqs(text_chunks, count)
+                    if res:
+                        return res
+                except Exception as fb_err:
+                    print(f"[AI ERROR] Secondary OpenAI provider failed: {fb_err}.")
+            print("Switching to MockAIProvider.")
             return MockAIProvider().generate_mcqs(text_chunks, count)
 
     def generate_chat_response(self, prompt: str) -> str:
@@ -534,8 +550,17 @@ class AnthropicProvider(AIProvider):
                 raise ValueError("no text block in the reply")
             return text
         except Exception as e:
-            print("[AI ERROR] Claude (%s) chat failed: %s: %s. Switching to "
-                  "MockAIProvider." % (self.model, type(e).__name__, e))
+            print("[AI ERROR] Claude (%s) chat failed: %s: %s." % (self.model, type(e).__name__, e))
+            if settings.OPENAI_API_KEY:
+                try:
+                    print("[AI FALLBACK] Attempting secondary provider (OpenAI)...")
+                    alt = OpenAIProvider(settings.OPENAI_API_KEY, settings.OPENAI_BASE_URL, settings.OPENAI_MODEL)
+                    res = alt.generate_chat_response(prompt)
+                    if res:
+                        return res
+                except Exception as fb_err:
+                    print(f"[AI ERROR] Secondary OpenAI provider failed: {fb_err}.")
+            print("Switching to MockAIProvider.")
             return MockAIProvider().generate_chat_response(prompt)
 
 
@@ -575,7 +600,8 @@ def describe_ai_provider() -> str:
     if name == "anthropic":
         return "anthropic:%s" % ((settings.ANTHROPIC_MODEL or DEFAULT_ANTHROPIC_MODEL).strip())
     if name == "openai":
-        return "openai:gpt-4o-mini"
+        m = (settings.OPENAI_MODEL or "gpt-4o-mini").strip()
+        return "openai:%s" % m
     return "mock"
 
 
@@ -593,7 +619,7 @@ def get_ai_provider() -> AIProvider:
             return MockAIProvider()
     if name == "openai":
         try:
-            return OpenAIProvider(settings.OPENAI_API_KEY)
+            return OpenAIProvider(settings.OPENAI_API_KEY, settings.OPENAI_BASE_URL, settings.OPENAI_MODEL)
         except Exception as exc:
             print("[AI ERROR] could not start the OpenAI client (%s: %s). Using "
                   "MockAIProvider." % (type(exc).__name__, exc))

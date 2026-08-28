@@ -231,7 +231,8 @@ def load(dry_run=False):
     with engine.begin() as conn:
         for i, stmt in enumerate(stmts, 1):
             try:
-                conn.exec_driver_sql(stmt)
+                exec_stmt = stmt.replace('%', '%%') if is_postgres else stmt
+                conn.exec_driver_sql(exec_stmt)
             except Exception as exc:
                 print("[FAIL] statement %d of %d:\n%s\n  -> %s"
                       % (i, len(stmts), stmt[:400], exc))
