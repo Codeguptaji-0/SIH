@@ -19,11 +19,12 @@ expected ladder is known up front.
 Reading the DB is only legitimate because this is a test harness against the
 demo database. The API itself never leaks correct_option before an answer.
 
-Sections 7b and 8 cover what the ladder alone does not: that the role targets in
-seed.sql reach both scoring paths over real HTTP, and that a fixed-length
-submission comes back with answer_review so an officer is told what was wrong
-rather than only how badly they did. Section 0 refuses to run at all against a
-database that predates the seed expansion - see the comment there.
+Sections 7b, 7c and 8 cover what the ladder alone does not: that the role targets
+in seed.sql reach both scoring paths over real HTTP, that no per-competency verdict
+is passed off as a finding when it rests on a single answer, and that a
+fixed-length submission comes back with answer_review so an officer is told what
+was wrong rather than only how badly they did. Section 0 refuses to run at all
+against a database that predates the seed expansion - see the comment there.
 
 Usage - the backend must already be running:
     python smoke_adaptive.py
@@ -443,6 +444,83 @@ def main():
                          top.get("gap_points") or 0.0))
         print("")
 
+        # ------------------------------------------- depth of evidence
+        #
+        # This section exists because of one line section 7b printed while every
+        # other assertion in the run passed:
+        #
+        #   top priority: Databases & SQL for Official Statistics 0.0% vs target
+        #   65.0 -> critical_gap (65.0 points short)
+        #
+        # A 65-point critical-gap verdict off a *single* answer. With 24 seeded
+        # competencies and a 10-question run, blind selection hands each competency
+        # about one question, and a competency scored on one answer can only ever
+        # read 0% or 100% - a coin flip wearing a gap report's clothes.
+        # app/competency/selection.py now concentrates a run on roughly
+        # max_questions / 3 competencies and engine.py flags whatever is still
+        # thin. verify_competency_banding.py proves both offline; this proves the
+        # live endpoint actually inherits them.
+        print("7c. Depth of evidence: no verdict rests on a single answer")
+        MIN_EVIDENCE = 2        # app/competency/engine.py: MIN_EVIDENCE_QUESTIONS
+        PER_COMPETENCY = 3      # selection.py: TARGET_QUESTIONS_PER_COMPETENCY
+        measured = result.get("competencies_measured")
+        thin = result.get("low_evidence_competencies")
+        check(isinstance(measured, int) and measured > 0,
+              "summary counts how many competencies it actually measured",
+              "competencies_measured=%r" % measured)
+        check(isinstance(thin, int),
+              "summary counts how many of those rest on thin evidence",
+              "low_evidence_competencies=%r" % thin)
+        check(bool(result.get("evidence_rule")),
+              "summary states the evidence rule in words",
+              str(result.get("evidence_rule")))
+        if rows:
+            check(all(isinstance(r.get("questions_answered"), int)
+                      and r.get("questions_answered") > 0 for r in rows),
+                  "every row says how many answers it is based on")
+            counted = sum(r.get("questions_answered") or 0 for r in rows)
+            check(counted == answered,
+                  "the rows account for every answer given",
+                  "%d across rows vs %d answered" % (counted, answered))
+            check(thin == sum(1 for r in rows if r.get("low_evidence")),
+                  "the thin-evidence count matches the flagged rows")
+            check(all(bool(r.get("low_evidence"))
+                      == ((r.get("questions_answered") or 0) < MIN_EVIDENCE)
+                      for r in rows),
+                  "a row is flagged low_evidence exactly when it is below the rule")
+            # The discriminator: blind selection over this pool spreads 10 answers
+            # across ~9 competencies, the rule keeps it near 10/3.
+            check(measured <= max(2, answered // MIN_EVIDENCE),
+                  "selection concentrated the run instead of spreading it thin",
+                  "%d competencies over %d answers" % (measured, answered))
+            deep = [r for r in rows
+                    if (r.get("questions_answered") or 0) >= MIN_EVIDENCE]
+            check(len(deep) >= max(1, answered // PER_COMPETENCY),
+                  "at least max_questions/%d competencies were measured on >= %d "
+                  "answers each" % (PER_COMPETENCY, MIN_EVIDENCE),
+                  "%d of %d rows" % (len(deep), len(rows)))
+            if worst:
+                # The specific regression: the loudest verdict in the report must
+                # either stand on real evidence or admit in the payload that it
+                # does not. Silent single-answer verdicts are what broke trust.
+                depth = top.get("questions_answered") or 0
+                check(depth >= MIN_EVIDENCE or bool(top.get("low_evidence")),
+                      "the top-priority verdict rests on >= %d answers, or is "
+                      "flagged low_evidence" % MIN_EVIDENCE,
+                      "%s: %d answer(s), low_evidence=%r"
+                      % (top.get("competency_name"), depth,
+                         top.get("low_evidence")))
+            print("  depths: %s"
+                  % ", ".join("%s %d/%d%s"
+                              % ((r.get("competency_name") or "?")[:26],
+                                 r.get("questions_correct") or 0,
+                                 r.get("questions_answered") or 0,
+                                 " LOW" if r.get("low_evidence") else "")
+                              for r in rows))
+            print("  %d competencies over %d answers, %d thin, %d deep"
+                  % (measured, answered, thin, len(deep)))
+        print("")
+
     # ------------------------------------------- fixed-length submit + review
     #
     # The adaptive path revealed the explanation one question at a time; the
@@ -497,6 +575,18 @@ def main():
                       "role_targets_applied=%r" % (sub or {}).get("role_targets_applied"))
                 check((sub or {}).get("raw_score") is not None,
                       "submit reports raw_score alongside the weighted score")
+                # /api/quizzes/active ranks by the same focus_size() rule, so the
+                # fixed-length report has to be as deep as the adaptive one. If
+                # this fails while 7c passes, the two paths have drifted apart.
+                sub_rows = (sub or {}).get("results") \
+                    or (sub or {}).get("competency_results") or []
+                sub_deep = [r for r in sub_rows
+                            if (r.get("questions_answered") or 0) >= 2]
+                check(bool(sub_rows) and len(sub_deep) >= 1,
+                      "the fixed-length report also measures competencies in depth",
+                      "%d of %d rows on >= 2 answers, evidence_rule=%r"
+                      % (len(sub_deep), len(sub_rows),
+                         bool((sub or {}).get("evidence_rule"))))
                 wrong_entries = [a for a in review if not a.get("is_correct")]
                 print("  scored %s%% (raw %s%%) over %s answers, %d wrong, job_role=%r"
                       % ((sub or {}).get("overall_score"), (sub or {}).get("raw_score"),
@@ -518,7 +608,8 @@ def main():
             print("  - %s" % f)
         return 1
     print("\nALL SMOKE ASSERTIONS PASSED: adaptive ladder (%d answers), role-relative "
-          "banding and fixed-length answer_review, all over real HTTP." % answered)
+          "banding, depth of evidence and fixed-length answer_review, all over "
+          "real HTTP." % answered)
     return 0
 
 

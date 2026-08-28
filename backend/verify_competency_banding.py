@@ -17,6 +17,14 @@ What it asserts:
      which is the whole reason role_targets exists.
   6. answer_review carries the stored explanation and the correct option text for
      every answered question.
+  7. The selection rule in app/competency/selection.py obeys its stated contract:
+     focus, least-covered-first, role-target tie-break.
+  8. A simulated 10-question run over the REAL seeded pool concentrates its
+     questions instead of spraying them - the defect that let a live run report a
+     "65 points below target" critical gap off a single answer. Blind selection is
+     simulated alongside it, so the improvement is measured, not asserted.
+  9. low_evidence is set exactly when a competency has fewer than
+     MIN_EVIDENCE_QUESTIONS answers, so a thin row can never read as a finding.
 
 Usage:  python verify_competency_banding.py
 Exit code 0 means every assertion held.
@@ -25,12 +33,19 @@ Exit code 0 means every assertion held.
 import itertools
 import json
 import os
+import random
 import sqlite3
 import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from app.competency.engine import CompetencyEngine  # noqa: E402
+from app.competency.selection import (  # noqa: E402
+    TARGET_QUESTIONS_PER_COMPETENCY,
+    choose_candidate,
+    coverage_of,
+    focus_size,
+)
 
 REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SCHEMA = os.path.join(REPO, "database", "schema.sql")
@@ -97,6 +112,66 @@ def targets_for(cur, job_role):
             (job_role,),
         )
     }
+
+
+# The scripted answer pattern: right, right, wrong, wrong, then right to the end.
+# Enough to drive the ladder up, down and up again, which is what makes the run a
+# fair test of selection - the pool has to hand back questions at three levels.
+SCRIPT = [True, True, False, False, True, True, True, True, True, True]
+
+
+def simulate_run(pool, role_targets, n=10, seed=0, blind=False):
+    """
+    Mirror of _pick_question() in app/routers/quizzes.py over an in-memory pool.
+
+    Same order of operations: the engine's ladder picks the level, the level filters
+    the band, the band is shuffled, and choose_candidate() picks within it. `blind`
+    replaces that last step with a uniform random pick - the behaviour this file
+    exists to argue against - so the two can be compared on the same seed pool.
+
+    Returns (coverage, substitutions, served_ids).
+    """
+    rng = random.Random(seed)
+    by_level = {}
+    for q in pool:
+        by_level.setdefault((q["difficulty"] or "medium").lower(), []).append(q)
+
+    served, cover, subs = [], {}, 0
+    level, consecutive_correct, consecutive_wrong = CompetencyEngine.DEFAULT_DIFFICULTY, 0, 0
+    focus = focus_size(n)
+
+    for i in range(n):
+        order = [level] + [lv for lv in CompetencyEngine.LEVELS if lv != level]
+        chosen = served_level = None
+        for candidate_level in order:
+            rows = [
+                (q["id"], q["competency_id"])
+                for q in by_level.get(candidate_level, [])
+                if q["id"] not in served
+            ]
+            if not rows:
+                continue
+            rng.shuffle(rows)
+            chosen = rng.choice(rows) if blind else choose_candidate(
+                rows, cover, role_targets, focus
+            )
+            served_level = candidate_level
+            break
+        if chosen is None:
+            break
+        if served_level != level:
+            subs += 1
+        served.append(chosen[0])
+        cover[chosen[1]] = cover.get(chosen[1], 0) + 1
+
+        correct = SCRIPT[i % len(SCRIPT)]
+        consecutive_correct, consecutive_wrong = (
+            (consecutive_correct + 1, 0) if correct else (0, consecutive_wrong + 1)
+        )
+        level, _ = CompetencyEngine.next_difficulty(
+            level, consecutive_correct, consecutive_wrong
+        )
+    return cover, subs, served
 
 
 def main():
@@ -232,12 +307,125 @@ def main():
         "is_correct agrees with the options it reports",
     )
 
+    # --- 7. the selection rule's own contract -----------------------------
+    print("\nSelection rule: %d questions per competency -> a %d-question run focuses on %d"
+          % (TARGET_QUESTIONS_PER_COMPETENCY, 10, focus_size(10)))
+    check(focus_size(10) == 10 // TARGET_QUESTIONS_PER_COMPETENCY,
+          "focus_size divides the run length by the depth target", str(focus_size(10)))
+    check(focus_size(1) == 1 and focus_size(0) == 1,
+          "focus_size never returns 0, so a very short run still has somewhere to go")
+    check(choose_candidate([]) is None, "no candidates returns None rather than raising")
+    check(
+        choose_candidate([("q1", "a"), ("q2", "b")], {"b": 1}, {"a": 90.0, "b": 40.0}, focus=1)
+        == ("q2", "b"),
+        "once the focus set is full the rule stays inside it, even against a higher target",
+    )
+    check(
+        choose_candidate([("q1", "a"), ("q2", "b")], {"a": 2, "b": 1}, {}, focus=5)
+        == ("q2", "b"),
+        "below the focus limit the least-covered competency wins",
+    )
+    check(
+        choose_candidate([("q1", "a"), ("q2", "b")], {}, {"a": 55.0, "b": 80.0}, focus=5)
+        == ("q2", "b"),
+        "equal coverage is broken toward the higher role target",
+    )
+    check(
+        coverage_of([{"competency_id": "a"}, {"competency_id": "a"}, {}, {"competency_id": "b"}])
+        == {"a": 2, "b": 1},
+        "coverage is counted off the trail and tolerates a malformed entry",
+    )
+
+    # --- 8. depth on the real pool, measured against blind selection -------
+    #
+    # The defect this answers was found in a PASSING live run, which reported
+    # "Databases & SQL for Official Statistics 0.0% vs target 65.0 -> critical_gap
+    # (65.0 points short)" off one answer. Selection, not banding, was the cause.
+    pool = load_questions(cur)
+    focused, subs, served = simulate_run(pool, t_a, n=10, seed=11)
+    deep = sum(1 for v in focused.values() if v >= CompetencyEngine.MIN_EVIDENCE_QUESTIONS)
+
+    # Both rules are run over many seeds, because the question is not "can it happen"
+    # but "does it happen every time". The shuffle is the only thing that differs.
+    def deep_count(seed, blind):
+        cover, _, _ = simulate_run(pool, t_a, n=10, seed=seed, blind=blind)
+        return sum(1 for v in cover.values() if v >= CompetencyEngine.MIN_EVIDENCE_QUESTIONS)
+
+    TRIALS = 200
+    focused_runs = [simulate_run(pool, t_a, n=10, seed=s) for s in range(20)]
+    focused_deep = [
+        sum(1 for v in c.values() if v >= CompetencyEngine.MIN_EVIDENCE_QUESTIONS)
+        for c, _, _ in focused_runs
+    ]
+    blind_deep = [deep_count(s, True) for s in range(TRIALS)]
+    blind_mean = sum(blind_deep) / float(TRIALS)
+    matched = sum(1 for b in blind_deep if b >= min(focused_deep))
+    print("\n10-question run over the seeded pool:")
+    print("  focused: %d competencies, depths %s, %d at >= %d answers, %d substitutions"
+          % (len(focused), sorted(focused.values(), reverse=True), deep,
+             CompetencyEngine.MIN_EVIDENCE_QUESTIONS, subs))
+    print("  focused over 20 shuffles: worst %d, best %d competencies measured deeply"
+          % (min(focused_deep), max(focused_deep)))
+    print("  blind over %d shuffles: %.1f on average, best %d, and %d run(s) (%.1f%%) reach %d"
+          % (TRIALS, blind_mean, max(blind_deep), matched, 100.0 * matched / TRIALS,
+             min(focused_deep)))
+    check(len(served) == 10, "the run serves its full length without exhausting the pool",
+          "%d served" % len(served))
+    check(len(served) == len(set(served)), "no question is served twice in a run")
+    check(all(s == 0 for _, s, _ in focused_runs),
+          "difficulty is never substituted, so the ladder still means something")
+    check(all(d >= focus_size(10) for d in focused_deep),
+          "EVERY focused run measures at least focus_size competencies on >= %d answers"
+          % CompetencyEngine.MIN_EVIDENCE_QUESTIONS,
+          "worst of 20 shuffles: %d" % min(focused_deep))
+    check(min(focused_deep) > blind_mean,
+          "even the rule's worst run beats blind selection's average",
+          "%d vs %.1f" % (min(focused_deep), blind_mean))
+    # Blind selection can get lucky - it is not that it never reaches this depth, it
+    # is that it reaches it rarely and by chance, while the rule reaches it always.
+    # Overclaiming "never" here failed this very assertion, which is the point of it.
+    check(matched <= TRIALS // 20,
+          "blind selection reaches that depth in at most 5% of runs, by luck rather than rule",
+          "%d of %d" % (matched, TRIALS))
+
+    # --- 9. thin rows are disclosed, not hidden ----------------------------
+    served_pool = [q for q in pool if q["id"] in set(served)]
+    run_answers = [
+        {"question_id": q["id"],
+         "selected_option": q["correct_option"] if i % 2 == 0 else (q["correct_option"] + 1) % 4}
+        for i, q in enumerate(served_pool)
+    ]
+    run_res = CompetencyEngine.evaluate_quiz(run_answers, served_pool, role_targets=t_a,
+                                             job_role=ROLE_A)
+    run_rows = run_res["competency_results"]
+    check(
+        all(r["low_evidence"] == (r["questions_answered"] < CompetencyEngine.MIN_EVIDENCE_QUESTIONS)
+            for r in run_rows),
+        "low_evidence is set exactly when a competency is under the evidence floor",
+    )
+    check(
+        run_res["low_evidence_competencies"] == sum(1 for r in run_rows if r["low_evidence"]),
+        "the summary count agrees with the rows",
+        "%d" % run_res["low_evidence_competencies"],
+    )
+    check(
+        all(("indication rather than a measurement" in r["evidence"]) == r["low_evidence"]
+            for r in run_rows),
+        "a thin row says so in words, so no UI can present it as a finding",
+    )
+    check(run_res["competencies_measured"] == len(run_rows),
+          "competencies_measured matches the rows returned", "%d" % len(run_rows))
+    print("  banded: %s" % ", ".join(
+        "%s %.0f%%/%d ans%s" % (r["competency_name"][:26], r["score"], r["questions_answered"],
+                                " (low evidence)" if r["low_evidence"] else "")
+        for r in sorted(run_rows, key=lambda x: -x["questions_answered"])))
+
     print()
     if failures:
         print("FAILED %d assertion(s): %s" % (len(failures), "; ".join(failures)))
         return 1
-    print("ALL COMPETENCY BANDING ASSERTIONS PASSED (%d questions, %d competencies, 2 job roles)."
-          % (n_q, n_comp))
+    print("ALL COMPETENCY BANDING ASSERTIONS PASSED (%d questions, %d competencies, 2 job roles, "
+          "selection depth measured against blind selection)." % (n_q, n_comp))
     return 0
 
 

@@ -1,4 +1,5 @@
 import json
+import random
 import uuid
 from datetime import datetime
 from typing import Optional, List
@@ -15,6 +16,15 @@ from app.schemas.schemas import (
 )
 from app.ai.provider import get_ai_provider
 from app.competency.engine import CompetencyEngine
+# The rule that decides which question comes next lives in app/competency/, not
+# here. It is what a gap report's honesty rests on, so it has to be assertable
+# without booting a server - verify_competency_banding.py imports it directly.
+from app.competency.selection import (
+    TARGET_QUESTIONS_PER_COMPETENCY,
+    choose_candidate,
+    coverage_of,
+    focus_size,
+)
 
 from app.auth.dependencies import require_role
 
@@ -123,8 +133,48 @@ def get_active_quiz(
     # soon as the approved pool was small. An empty quiz is the honest answer.
     questions = db.query(Question).filter(Question.review_status == "APPROVED").all()
 
+    # Which ten, and why.
+    #
+    # This used to be questions[:10] - insertion order - so with 73 approved rows
+    # every officer got the same first ten, drawn from whichever competencies happen
+    # to appear first in seed.sql, and retaking the assessment changed nothing. Worse,
+    # ten questions spread over ten competencies means every per-competency score is
+    # 0% or 100%, and the gap report then bands a competency on a single answer.
+    #
+    # Instead: concentrate on the competencies this officer's ROLE demands most, and
+    # give each of them several questions across difficulties. Same length, a result
+    # that can actually be defended.
+    _, role_targets = _role_context(db, user)
+    by_competency = {}
+    for q in questions:
+        by_competency.setdefault(q.competency_id, []).append(q)
+
+    ranked = sorted(
+        by_competency.keys(),
+        key=lambda cid: (-float(role_targets.get(cid, 0) or 0), cid),
+    )
+    selected = []
+    for cid in ranked[:focus_size(10)]:
+        group = by_competency[cid]
+        # One question per difficulty band where the pool allows it, so a competency
+        # is probed at more than one level rather than three times at the same one.
+        seen_levels = set()
+        for q in sorted(group, key=lambda x: CompetencyEngine.LEVELS.index(
+                (x.difficulty or CompetencyEngine.DEFAULT_DIFFICULTY).lower())
+                if (x.difficulty or "").lower() in CompetencyEngine.LEVELS else 1):
+            level = (q.difficulty or CompetencyEngine.DEFAULT_DIFFICULTY).lower()
+            if level not in seen_levels and len(seen_levels) < TARGET_QUESTIONS_PER_COMPETENCY:
+                seen_levels.add(level)
+                selected.append(q)
+    # Top up from whatever is left if the focus set could not fill the quiz.
+    if len(selected) < 10:
+        chosen_ids = {q.id for q in selected}
+        remainder = [q for q in questions if q.id not in chosen_ids]
+        random.shuffle(remainder)
+        selected.extend(remainder[: 10 - len(selected)])
+
     formatted_q = []
-    for q in questions[:10]:
+    for q in selected[:10]:
         comp = db.query(Competency).filter(Competency.id == q.competency_id).first()
         opts = json.loads(q.options_json) if isinstance(q.options_json, str) else q.options_json
         formatted_q.append({
@@ -145,6 +195,18 @@ def get_active_quiz(
         # Let the client render an honest empty state instead of guessing why the
         # list is short. approved_pool_size is the real number of approved questions.
         "approved_pool_size": len(questions),
+        # Say out loud how these questions were chosen. A gap report is only as
+        # defensible as the sampling behind it, so the sampling is not hidden.
+        "selection_method": (
+            "Concentrated on the %d competencies this role has the highest proficiency "
+            "targets for, up to %d questions each across difficulty bands, so each "
+            "competency is scored on several answers rather than one."
+            % (focus_size(10), TARGET_QUESTIONS_PER_COMPETENCY)
+            if role_targets else
+            "No proficiency targets are defined for this role, so competencies were "
+            "covered in depth in a fixed order rather than by role priority."
+        ),
+        "competencies_covered": len({q.competency_id for q in selected[:10]}),
         "message": (
             None if formatted_q else
             "No trainer-approved questions are available yet. A trainer must approve "
@@ -295,9 +357,21 @@ def _serve_payload(db: Session, q: Question) -> dict:
     }
 
 
-def _pick_question(db: Session, level: str, exclude_ids: List[str]):
+def _pick_question(
+    db: Session,
+    level: str,
+    exclude_ids: List[str],
+    cover_counts: Optional[dict] = None,
+    role_targets: Optional[dict] = None,
+    max_questions: int = 10,
+):
     """
     Next unseen approved question, preferring `level`.
+
+    Within a band the choice is not blind: choose_candidate() steers the run toward
+    the competencies it has already started, so a fixed number of questions yields
+    a few competencies measured on several answers rather than many measured on
+    one. Difficulty stays the primary filter, because that is the ladder's promise.
 
     If the approved pool has nothing left at the requested level, widen to the
     other levels rather than ending the run early. The caller reports that
@@ -305,12 +379,24 @@ def _pick_question(db: Session, level: str, exclude_ids: List[str]):
 
     Returns (question_or_None, was_substituted).
     """
+    cover_counts = cover_counts or {}
+    role_targets = role_targets or {}
+    focus = focus_size(max_questions)
+
     order = [level] + [lv for lv in CompetencyEngine.LEVELS if lv != level]
     for candidate_level in order:
         query = _approved_pool(db).filter(Question.difficulty == candidate_level)
         if exclude_ids:
             query = query.filter(~Question.id.in_(exclude_ids))
-        q = query.order_by(func.random()).first()
+        rows = query.with_entities(Question.id, Question.competency_id).all()
+        if not rows:
+            continue
+        candidates = [(r[0], r[1]) for r in rows]
+        # Shuffle first so that equal-ranking candidates are not always the same
+        # row: min() is stable, and choose_candidate() is deliberately pure.
+        random.shuffle(candidates)
+        chosen = choose_candidate(candidates, cover_counts, role_targets, focus)
+        q = db.query(Question).filter(Question.id == chosen[0]).first()
         if q:
             return q, (candidate_level != level)
     return None, False
@@ -422,7 +508,15 @@ def start_adaptive_assessment(
     max_questions = max(1, min(int(request.max_questions or 10), MAX_ADAPTIVE_QUESTIONS))
     pool_size = _approved_pool(db).count()
 
-    first_q, substituted = (None, False) if pool_size == 0 else _pick_question(db, starting_level, [])
+    # Role targets steer selection as well as banding: when a run cannot cover every
+    # competency, it should spend its questions where this role demands the most.
+    _, role_targets = _role_context(db, user)
+    first_q, substituted = (
+        (None, False) if pool_size == 0
+        else _pick_question(
+            db, starting_level, [], role_targets=role_targets, max_questions=max_questions
+        )
+    )
     if first_q is None:
         # No session row is created, because a session with nothing to serve is not a
         # session. The client gets the same honest empty state as /active.
@@ -586,7 +680,16 @@ def answer_adaptive_question(
     exhausted = False
 
     if not finished:
-        next_q, substituted = _pick_question(db, next_level, served)
+        # Coverage is read off the run's own trail, so depth-seeking needs no extra
+        # state on the session row and stays consistent with the audit view.
+        cover_counts = coverage_of(trail)
+        _, role_targets = _role_context(db, user)
+        next_q, substituted = _pick_question(
+            db, next_level, served,
+            cover_counts=cover_counts,
+            role_targets=role_targets,
+            max_questions=session_row.max_questions,
+        )
         if next_q is None:
             finished = True
             exhausted = True

@@ -39,6 +39,16 @@ class CompetencyEngine:
     # yardstick was used for every row.
     NEAR_TARGET_RATIO = 0.8
 
+    # How many answers a competency needs before its band is treated as a measurement.
+    #
+    # A single question decides between 0% and 100%, so a one-question competency can
+    # be reported as a 65-point critical gap on no real evidence. The band is still
+    # returned - refusing to say anything is not more honest than saying it carefully -
+    # but the row carries questions_answered and low_evidence, and the evidence string
+    # says so in words, so neither the UI nor a recommendation can present a guess as
+    # a finding. Selection in quizzes.py is what actually fixes the cause.
+    MIN_EVIDENCE_QUESTIONS = 2
+
     @classmethod
     def weight_for(cls, difficulty) -> float:
         return cls.DIFFICULTY_WEIGHTS.get(
@@ -183,6 +193,12 @@ class CompetencyEngine:
             missed = stats["missed_questions"][0] if stats["missed_questions"] else None
             detail = (" Missed, for example: '%s'." % missed) if missed else ""
             target = role_targets.get(comp_id)
+            low_evidence = stats["total"] < cls.MIN_EVIDENCE_QUESTIONS
+            caveat = (
+                " Based on %d question, so this is an indication rather than a "
+                "measurement - a longer assessment is needed to confirm it."
+                % stats["total"]
+            ) if low_evidence else ""
 
             if target is not None:
                 benchmark = "role_target"
@@ -246,8 +262,11 @@ class CompetencyEngine:
                 "benchmark": benchmark,
                 "target_score": target,
                 "gap_points": shortfall,
+                "questions_answered": stats["total"],
+                "questions_correct": stats["correct"],
+                "low_evidence": low_evidence,
                 "priority": 0,
-                "evidence": evidence
+                "evidence": evidence + caveat
             })
 
         # Priority is now ordered by the SIZE of the shortfall inside each band, not by
@@ -276,6 +295,15 @@ class CompetencyEngine:
             "total_questions": total_questions,
             "correct_answers": total_correct,
             "job_role": role_label or None,
+            "competencies_measured": len(competency_results),
+            "low_evidence_competencies": sum(
+                1 for r in competency_results if r["low_evidence"]
+            ),
+            "evidence_rule": (
+                "A competency needs at least %d answers before its band is treated as a "
+                "measurement; rows below that are flagged low_evidence."
+                % cls.MIN_EVIDENCE_QUESTIONS
+            ),
             "role_targets_applied": sum(
                 1 for r in competency_results if r["benchmark"] == "role_target"
             ),

@@ -85,6 +85,11 @@ interface CompetencyRow {
   status?: string;
   priority?: string;
   evidence?: string;
+  // How many answers the band rests on. One answer can only score 0% or 100%, so a
+  // thinly measured row is labelled rather than shown as a settled finding.
+  questions_answered?: number;
+  questions_correct?: number;
+  low_evidence?: boolean;
 }
 
 interface AdaptiveResult {
@@ -96,6 +101,9 @@ interface AdaptiveResult {
   final_level?: string;
   attempt_id?: string;
   competency_results?: CompetencyRow[];
+  competencies_measured?: number;
+  low_evidence_competencies?: number;
+  evidence_rule?: string;
 }
 
 interface StartResponse {
@@ -639,9 +647,22 @@ export default function AdaptiveAssessmentPage() {
                         <span className="text-xs font-bold">
                           {cr.competency_name || cr.competency_id}
                         </span>
-                        <span className="text-[10px] font-mono text-slate-300">
-                          {typeof cr.score === 'number' ? `${cr.score.toFixed(1)}%` : '-'} ·{' '}
-                          {cr.status} · {cr.priority}
+                        <span className="text-[10px] font-mono text-slate-300 flex items-center gap-2">
+                          {typeof cr.questions_answered === 'number' && (
+                            <span className="text-slate-400">
+                              {cr.questions_correct ?? 0}/{cr.questions_answered}{' '}
+                              {t('adaptiveAnswersCounted')}
+                            </span>
+                          )}
+                          {cr.low_evidence && (
+                            <span className="px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-200 border border-amber-400/30 uppercase font-bold">
+                              {t('adaptiveLowEvidence')}
+                            </span>
+                          )}
+                          <span>
+                            {typeof cr.score === 'number' ? `${cr.score.toFixed(1)}%` : '-'} ·{' '}
+                            {cr.status} · {cr.priority}
+                          </span>
                         </span>
                       </div>
                       {cr.evidence && (
@@ -649,6 +670,11 @@ export default function AdaptiveAssessmentPage() {
                       )}
                     </div>
                   ))}
+                  {result.evidence_rule && (
+                    <p className="text-[10px] font-mono text-slate-400 leading-relaxed">
+                      {result.evidence_rule}
+                    </p>
+                  )}
                 </div>
               )}
 

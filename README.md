@@ -103,7 +103,13 @@ third-party dependencies and drives `CompetencyEngine` directly. Asserts that ev
 difficulty band is deep enough that a 20-question adaptive run cannot exhaust it,
 that answer positions are spread so "always pick B" loses, that the demo officer's
 role targets reach the engine, and — by enumerating every possible answer pattern on
-one competency — that identical answers are banded differently for two job roles.*
+one competency — that identical answers are banded differently for two job roles.
+It also simulates a full 10-question run over the real seeded pool and asserts that
+**every** run measures at least three competencies on two or more answers each, while
+blind question selection manages that in under 1% of 200 runs. That is the difference
+between a gap report and a coin flip: a competency scored on one answer can only ever
+read 0% or 100%, and such rows are flagged `low_evidence` rather than presented as
+findings.*
 
 ### 2b. Verify the adaptive assessment end to end
 ```bash
@@ -115,9 +121,14 @@ step the level up, two consecutive incorrect must step it down, a single answer 
 not move it, served questions must not leak the correct option, and another account
 must not be able to read the session. Also asserts that role targets reach both
 scoring paths and that a fixed-length submission returns `answer_review` with the
-correct option and explanation for every answer. Exits non-zero if any of that stops
-being true, and refuses to run at all against a database that predates the current
-seed — a thin pool makes the ladder substitute difficulties and proves nothing.*
+correct option and explanation for every answer. Section 7c asserts the depth the
+gap report rests on: the rows must account for every answer given, at least
+`max_questions / 3` competencies must be measured on two or more answers, and the
+loudest verdict in the report — the top-priority row — must either stand on two
+answers or be flagged `low_evidence` in the payload. Exits non-zero if any of that
+stops being true, and refuses to run at all against a database that predates the
+current seed — a thin pool makes the ladder substitute difficulties and proves
+nothing.*
 
 *If `/api/auth/login` ever returns HTTP 500, run `python diag_login.py` — it walks
 the login path in six widening stages and prints the real traceback for the one

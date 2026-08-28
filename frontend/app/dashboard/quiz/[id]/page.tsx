@@ -40,6 +40,11 @@ interface ActiveQuizResponse {
   questions: QuizQuestion[];
   approved_pool_size: number;
   message: string | null;
+  // How these particular questions were chosen, in the backend's own words, and how
+  // many competencies they cover. A gap report is only as defensible as its sampling,
+  // so the sampling is shown rather than left for the officer to assume.
+  selection_method?: string | null;
+  competencies_covered?: number | null;
 }
 
 /**
@@ -76,6 +81,11 @@ interface CompetencyResultItem {
   gap_points: number;
   priority: number;
   evidence: string;
+  // How much the band actually rests on. One answer forces 0% or 100%, so a row
+  // measured that thinly is labelled instead of being shown as a finding.
+  questions_answered?: number;
+  questions_correct?: number;
+  low_evidence?: boolean;
 }
 
 interface SubmitResponse {
@@ -90,6 +100,9 @@ interface SubmitResponse {
   correct_answers: number;
   results: CompetencyResultItem[];
   answer_review: AnswerReviewItem[];
+  competencies_measured?: number;
+  low_evidence_competencies?: number;
+  evidence_rule?: string | null;
 }
 
 export default function AdaptiveQuizPage() {
@@ -98,6 +111,8 @@ export default function AdaptiveQuizPage() {
   const [quizId, setQuizId] = useState<string | null>(null);
   const [emptyMessage, setEmptyMessage] = useState<string | null>(null);
   const [approvedPoolSize, setApprovedPoolSize] = useState<number | null>(null);
+  const [selectionMethod, setSelectionMethod] = useState<string | null>(null);
+  const [competenciesCovered, setCompetenciesCovered] = useState<number | null>(null);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [userAnswers, setUserAnswers] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(true);
@@ -117,6 +132,10 @@ export default function AdaptiveQuizPage() {
       setEmptyMessage(data?.message ?? null);
       setApprovedPoolSize(
         typeof data?.approved_pool_size === 'number' ? data.approved_pool_size : null
+      );
+      setSelectionMethod(typeof data?.selection_method === 'string' ? data.selection_method : null);
+      setCompetenciesCovered(
+        typeof data?.competencies_covered === 'number' ? data.competencies_covered : null
       );
       setCurrentIndex(0);
       setUserAnswers({});
@@ -272,6 +291,9 @@ export default function AdaptiveQuizPage() {
               answeredCount={answeredCount}
               isSubmitting={isSubmitting}
               submitError={submitError}
+              selectionMethod={selectionMethod}
+              competenciesCovered={competenciesCovered}
+              approvedPoolSize={approvedPoolSize}
               onSelectOption={handleSelectOption}
               onPrev={handlePrev}
               onNext={handleNext}
@@ -300,6 +322,9 @@ interface QuizRunnerProps {
   answeredCount: number;
   isSubmitting: boolean;
   submitError: string | null;
+  selectionMethod: string | null;
+  competenciesCovered: number | null;
+  approvedPoolSize: number | null;
   onSelectOption: (idx: number) => void;
   onPrev: () => void;
   onNext: () => void;
@@ -313,6 +338,9 @@ function QuizRunner({
   answeredCount,
   isSubmitting,
   submitError,
+  selectionMethod,
+  competenciesCovered,
+  approvedPoolSize,
   onSelectOption,
   onPrev,
   onNext,
@@ -353,6 +381,29 @@ function QuizRunner({
           )}
         </div>
       </div>
+
+      {/*
+        Say how these questions were chosen. Ten questions spread thinly over ten
+        competencies can only ever score each of them 0% or 100%, so the backend
+        concentrates them and reports that choice in selection_method. Showing it
+        here means the officer can see what the coming gap report is based on.
+      */}
+      {selectionMethod && (
+        <div className="bg-blue-50 border border-blue-100 rounded-2xl px-5 py-3 flex items-start gap-2">
+          <Target className="w-4 h-4 text-blue-600 flex-shrink-0 mt-0.5" aria-hidden="true" />
+          <p className="text-[11px] text-slate-600 leading-relaxed">
+            {selectionMethod}
+            {competenciesCovered !== null && (
+              <span className="font-mono text-slate-500">
+                {' '}
+                ({questions.length} questions across {competenciesCovered}{' '}
+                {competenciesCovered === 1 ? 'competency' : 'competencies'}
+                {approvedPoolSize !== null && <> from a pool of {approvedPoolSize} approved</>})
+              </span>
+            )}
+          </p>
+        </div>
+      )}
 
       {/* Progress Bar */}
       <div
@@ -532,12 +583,37 @@ function SubmissionReview({
       </div>
       {ordered.length > 0 && (
         <div className="bg-white rounded-3xl border border-slate-200 shadow-sm divide-y divide-slate-100">
-          <div className="p-5 text-sm font-bold text-slate-800">Competency breakdown</div>
+          <div className="p-5 flex items-center justify-between gap-3 flex-wrap">
+            <span className="text-sm font-bold text-slate-800">Competency breakdown</span>
+            {/*
+              How thin the thinnest rows are, in the backend's own words. A single
+              answer forces 0% or 100%, which is how a one-question competency ended
+              up reported as a 65-point critical gap. Said out loud, it cannot pass
+              for a finding.
+            */}
+            {typeof data.low_evidence_competencies === 'number' &&
+              data.low_evidence_competencies > 0 && (
+                <span className="text-[10px] font-mono uppercase px-2.5 py-1 rounded-full bg-amber-50 text-amber-800 border border-amber-200">
+                  {data.low_evidence_competencies} of {ordered.length} thinly measured
+                </span>
+              )}
+          </div>
           {ordered.map((r) => (
             <div key={r.competency_id} className="p-5 space-y-2">
               <div className="flex items-center justify-between gap-3 flex-wrap">
                 <div className="text-xs font-bold text-slate-800">{r.competency_name}</div>
                 <div className="flex items-center gap-2">
+                  {typeof r.questions_answered === 'number' && (
+                    <span className="text-[10px] font-mono text-slate-400">
+                      {r.questions_correct ?? 0}/{r.questions_answered}{' '}
+                      {r.questions_answered === 1 ? 'answer' : 'answers'}
+                    </span>
+                  )}
+                  {r.low_evidence && (
+                    <span className="text-[10px] font-bold font-mono uppercase px-2 py-1 rounded-full bg-amber-50 text-amber-800 border border-amber-200">
+                      low evidence
+                    </span>
+                  )}
                   <span className="text-[11px] font-mono text-slate-500">
                     {r.score}%
                     {r.target_score !== null && <> / target {r.target_score}%</>}
@@ -557,6 +633,11 @@ function SubmissionReview({
               </div>
             </div>
           ))}
+          {data.evidence_rule && (
+            <div className="p-5 text-[10px] font-mono text-slate-400 leading-relaxed">
+              {data.evidence_rule}
+            </div>
+          )}
         </div>
       )}
       {answers.length > 0 && (
