@@ -161,6 +161,29 @@ npm run dev
 
 ---
 
+## 🚢 Deployment (Postgres + Vercel)
+
+Everything above runs on SQLite on one machine. For a real URL — Supabase Postgres,
+the API on Render or Railway, the frontend on Vercel — follow **[DEPLOY.md](DEPLOY.md)**.
+The switch is one environment variable plus a driver, because `app/database.py`
+builds the engine from `DATABASE_URL`, but three things need doing that the local
+path never exercises:
+
+```bash
+cd backend
+python seed_db.py --selftest      # prove the Postgres seed rewrite, no database needed
+python -m pip install -r requirements-postgres.txt
+python seed_db.py                 # create_all() + load seed into DATABASE_URL
+```
+
+`init_db.py` cannot do this: it uses `sqlite3.executescript` and the seed's
+`INSERT OR REPLACE`, neither of which Postgres understands. `seed_db.py` splits the
+script on real statement boundaries and rewrites those upserts to
+`ON CONFLICT (id) DO NOTHING`. On the frontend, set `BACKEND_ORIGIN` — `next.config.js`
+used to hardcode `http://127.0.0.1:8000`, which on Vercel points at nothing.
+
+---
+
 ## 🔑 Demo Login Accounts
 
 All three seeded accounts share the password **`SkillSetu@2026`**.

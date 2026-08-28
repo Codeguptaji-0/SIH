@@ -1,0 +1,39 @@
+# Render blueprint - optional. Everything here can equally be typed into the
+# Render (or Railway) dashboard; the file exists so the build and start commands
+# live in git instead of in one person's browser.
+#
+# Two things about it are deliberate:
+#
+#   rootDir: backend      The repo has backend/ and frontend/ side by side. Without
+#                         this, pip install finds no requirements.txt and the build
+#                         fails before any log worth reading.
+#   sync: false           On every secret. A value committed here is a published
+#                         credential; these are typed into the dashboard once and
+#                         Render keeps them. SECRET_KEY especially: an ADMIN token
+#                         can be forged from it with no password.
+#
+# The frontend is NOT here. It is a Next.js app and belongs on Vercel, whose only
+# required setting is the BACKEND_ORIGIN env var (see DEPLOY.md).
+services:
+  - type: web
+    name: skillsetu-api
+    runtime: python
+    rootDir: backend
+    buildCommand: pip install -r requirements.txt -r requirements-postgres.txt
+    startCommand: python -m uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /api/health
+    envVars:
+      # false, not true: this is what makes SECRET_KEY mandatory and what makes an
+      # empty or wildcard CORS_ORIGINS a startup error instead of a browser error.
+      - key: DEMO_MODE
+        value: "false"
+      - key: PYTHON_VERSION
+        value: "3.12.8"
+      - key: SECRET_KEY
+        sync: false
+      - key: DATABASE_URL
+        sync: false
+      - key: CORS_ORIGINS
+        sync: false
+      - key: OPENAI_API_KEY
+        sync: false

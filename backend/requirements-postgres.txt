@@ -1,0 +1,21 @@
+# Extra dependency for a Postgres deployment. Install ON TOP of requirements.txt:
+#
+#     python -m pip install -r requirements.txt
+#     python -m pip install -r requirements-postgres.txt
+#     python pin_requirements.py --file requirements-postgres.txt --write
+#
+# Nothing in the application code changes. app/database.py builds the engine from
+# settings.DATABASE_URL and only applies SQLite's check_same_thread connect_arg
+# when the URL starts with sqlite, so the driver below is the whole difference
+# between the demo file and Supabase.
+#
+# psycopg 3 (import name `psycopg`), not psycopg2: the SQLAlchemy URL then reads
+#     postgresql+psycopg://USER:PASSWORD@HOST:5432/postgres
+# The [binary] extra ships prebuilt wheels, which is what avoids needing libpq and
+# a C compiler on the build image - the usual cause of a deploy that fails during
+# pip install with a pg_config error.
+#
+# Left as a range on purpose, unlike requirements.txt: this line has never been
+# installed on the machine that runs the demo, so pinning it here would be
+# pinning a version nobody has run. Pin it with the command above once installed.
+psycopg[binary]>=3.1
