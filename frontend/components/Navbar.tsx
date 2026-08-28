@@ -1,9 +1,25 @@
-"use client";
+'use client';
+
+/*
+ * Application masthead.
+ *
+ * Restyled to the statistical-release direction: paper ground, one ink rule at the
+ * bottom, wordmark set in the display face, no translucency and no shadow.
+ *
+ * Two defects fixed here, both visible in the signed-out recording:
+ *
+ *   - `activeRole` used to fall back to the literal 'OFFICIAL'. With no session,
+ *     the bar still printed an OFFICIAL badge, so a signed-out page looked signed
+ *     in. It now renders nothing when there is no role to report.
+ *   - A hardcoded "DEMO MODE" pill was always on, whatever the backend was
+ *     actually doing. Removed. If that state needs showing, it has to come from
+ *     GET /api/health, which names the live provider.
+ */
 
 import React from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Shield, Sparkles, User, Award, BookOpen, LogOut, Globe } from 'lucide-react';
+import { LogOut, Globe } from 'lucide-react';
 import { useLanguage } from '../app/context/LanguageContext';
 import { useAuth } from '../app/context/AuthContext';
 
@@ -13,22 +29,25 @@ interface NavbarProps {
   onRoleSwitch?: (role: string) => void;
 }
 
-export const Navbar: React.FC<NavbarProps> = ({
-  currentRole,
-  userName,
-  onRoleSwitch
-}) => {
+/** The three seeded accounts, in the order they appear in the switcher. */
+const ACCOUNTS: { role: string; label: string; email: string }[] = [
+  { role: 'OFFICIAL', label: 'Official', email: 'official@skillsetu.demo' },
+  { role: 'TRAINER', label: 'Trainer', email: 'trainer@skillsetu.demo' },
+  { role: 'ADMIN', label: 'Admin', email: 'admin@skillsetu.demo' },
+];
+
+export const Navbar: React.FC<NavbarProps> = ({ currentRole, userName, onRoleSwitch }) => {
   const router = useRouter();
-  const { language, toggleLanguage, t } = useLanguage();
+  const { toggleLanguage, t } = useLanguage();
   const { user, logout } = useAuth();
 
-  const activeRole = currentRole || user?.role || 'OFFICIAL';
-  // No fallback name: inventing a person here made every screen look like it
-  // was showing a real officer's record even when nothing had loaded.
+  // No fallback role and no fallback name: inventing either made every screen
+  // look like it was showing a real officer's record even when nothing had loaded.
+  const activeRole = currentRole || user?.role || '';
   const activeName = userName || user?.full_name || '';
 
   /**
-   * Switch persona.
+   * Switch account.
    *
    * A parent can handle this locally; otherwise there is nothing this component
    * can legitimately do except send the user to sign in as that account. It used
@@ -41,8 +60,8 @@ export const Navbar: React.FC<NavbarProps> = ({
       onRoleSwitch(role);
       return;
     }
-    const email = role === 'ADMIN' ? 'admin@skillsetu.demo' : role === 'TRAINER' ? 'trainer@skillsetu.demo' : 'official@skillsetu.demo';
-    router.push(`/login?email=${encodeURIComponent(email)}`);
+    const account = ACCOUNTS.find((a) => a.role === role);
+    router.push(`/login?email=${encodeURIComponent(account?.email ?? '')}`);
   };
 
   /** Revoke the session server-side before leaving, then go to the login page. */
@@ -55,96 +74,83 @@ export const Navbar: React.FC<NavbarProps> = ({
   };
 
   return (
-    <header className="sticky top-0 z-50 bg-slate-900 text-white border-b border-slate-800 shadow-md">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
-        
-        {/* Left: Branding & SIH Badge */}
-        <div className="flex items-center space-x-4">
-          <Link href="/" className="flex items-center space-x-2 group">
-            <div className="bg-blue-600 p-2 rounded-lg text-white font-bold tracking-wider group-hover:bg-blue-500 transition-colors">
-              <Shield className="w-6 h-6" />
-            </div>
-            <div>
-              <span className="text-xl font-bold tracking-tight text-white flex items-center gap-2">
-                {t('appTitle')} <span className="text-xs bg-blue-500/20 text-blue-300 border border-blue-400/30 px-2 py-0.5 rounded font-mono">SIH26101</span>
-              </span>
-              <span className="text-[10px] text-slate-400 block -mt-1 font-medium tracking-wide">
-                MoSPI • {t('appSubtitle')}
-              </span>
-            </div>
-          </Link>
-        </div>
+    <header className="sticky top-0 z-50 border-b border-ink bg-paper">
+      <div className="mx-auto flex h-14 max-w-7xl items-center justify-between gap-4 px-4 sm:px-6 lg:px-8">
+        {/* Wordmark. The release masthead, reduced to bar height. */}
+        <Link href="/" className="flex min-w-0 items-baseline gap-2.5">
+          <span className="font-display text-lg font-extrabold uppercase tracking-tightest text-ink">
+            {t('appTitle')}
+          </span>
+          <span className="hidden font-mono text-[11px] text-slate-400 sm:inline">SIH26101</span>
+          <span className="eyebrow hidden truncate lg:inline">MoSPI · {t('appSubtitle')}</span>
+        </Link>
 
-        {/* Middle: Role Selector Switcher */}
-        <div className="hidden md:flex items-center bg-slate-800 p-1 rounded-lg border border-slate-700">
-          <button
-            onClick={() => handleSwitch('OFFICIAL')}
-            className={`px-3 py-1.5 rounded-md text-xs font-semibold transition-all ${
-              activeRole === 'OFFICIAL' ? 'bg-blue-600 text-white shadow' : 'text-slate-400 hover:text-white'
-            }`}
-          >
-            Official
-          </button>
-          <button
-            onClick={() => handleSwitch('TRAINER')}
-            className={`px-3 py-1.5 rounded-md text-xs font-semibold transition-all ${
-              activeRole === 'TRAINER' ? 'bg-blue-600 text-white shadow' : 'text-slate-400 hover:text-white'
-            }`}
-          >
-            Trainer
-          </button>
-          <button
-            onClick={() => handleSwitch('ADMIN')}
-            className={`px-3 py-1.5 rounded-md text-xs font-semibold transition-all ${
-              activeRole === 'ADMIN' ? 'bg-blue-600 text-white shadow' : 'text-slate-400 hover:text-white'
-            }`}
-          >
-            Admin
-          </button>
-        </div>
+        {/*
+         * Account switcher. This does not change the current session - it sends
+         * the user to the login page with that account's email prefilled - so it
+         * is labelled as accounts rather than as a view toggle.
+         */}
+        <nav aria-label="Accounts" className="hidden md:flex">
+          {ACCOUNTS.map((a) => {
+            const on = activeRole === a.role;
+            return (
+              <button
+                key={a.role}
+                type="button"
+                onClick={() => handleSwitch(a.role)}
+                aria-current={on ? 'true' : undefined}
+                className={`border-b-2 px-3 pb-1 pt-1.5 text-xs font-medium transition-colors ${
+                  on ? 'border-navy-600 text-ink' : 'border-transparent text-slate-400 hover:text-ink'
+                }`}
+              >
+                {a.label}
+              </button>
+            );
+          })}
+        </nav>
 
-        {/* Right: Language Switcher, Demo Mode Badge & User Profile */}
-        <div className="flex items-center space-x-3">
-          {/* Priority 6: Language Toggle */}
+        <div className="flex items-center gap-2 sm:gap-3">
           <button
             onClick={toggleLanguage}
-            className="flex items-center gap-1.5 bg-slate-800 hover:bg-slate-700 border border-slate-700 text-blue-300 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all shadow-sm"
-            title="Toggle Language / भाषा बदलें"
+            className="inline-flex h-8 items-center gap-1.5 border border-rule bg-white px-2.5 text-xs font-medium text-ink transition-colors hover:border-ink"
+            title="Toggle language / भाषा बदलें"
           >
-            <Globe className="w-3.5 h-3.5 text-blue-400" />
+            <Globe className="h-3.5 w-3.5 text-slate-400" aria-hidden="true" />
             <span>{t('switchLanguage')}</span>
           </button>
 
-          <div className="bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 px-2.5 py-1 rounded-full text-xs font-mono font-medium flex items-center gap-1.5">
-            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-            DEMO MODE
-          </div>
-
-          <div className="flex items-center space-x-2 bg-slate-800/80 px-3 py-1.5 rounded-lg border border-slate-700">
-            <div className="w-7 h-7 rounded-full bg-blue-600 text-white flex items-center justify-center font-bold text-xs">
-              {activeName ? activeName.charAt(0) : <User className="w-3.5 h-3.5" />}
+          {/* Identity. Rendered only when there is something true to report. */}
+          {(activeName || activeRole) && (
+            <div className="flex items-center gap-2">
+              <span
+                aria-hidden="true"
+                className="grid h-8 w-8 place-items-center bg-ink font-display text-xs font-bold text-paper"
+              >
+                {activeName ? activeName.charAt(0).toUpperCase() : '—'}
+              </span>
+              <div className="hidden leading-tight sm:block">
+                {activeName && (
+                  <div className="text-xs font-medium text-ink">{activeName}</div>
+                )}
+                {activeRole && <div className="eyebrow mt-0.5">{activeRole}</div>}
+              </div>
             </div>
-            <div className="hidden sm:block text-left">
-              {activeName && (
-                <div className="text-xs font-semibold text-slate-200">{activeName}</div>
-              )}
-              <div className="text-[10px] text-slate-400 font-medium">{activeRole}</div>
-            </div>
-          </div>
+          )}
 
-          <button
-            type="button"
-            onClick={handleLogout}
-            aria-label={t('logout') || 'Sign out'}
-            title={t('logout') || 'Sign out'}
-            className="text-slate-400 hover:text-white p-2 rounded-lg hover:bg-slate-800 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500"
-          >
-            <LogOut className="w-4 h-4" aria-hidden="true" />
-          </button>
+          {user && (
+            <button
+              type="button"
+              onClick={handleLogout}
+              aria-label={t('logout') || 'Sign out'}
+              title={t('logout') || 'Sign out'}
+              className="grid h-8 w-8 place-items-center border border-transparent text-slate-400 transition-colors hover:border-rule hover:text-ink"
+            >
+              <LogOut className="h-4 w-4" aria-hidden="true" />
+            </button>
+          )}
         </div>
 
       </div>
     </header>
   );
 };
-

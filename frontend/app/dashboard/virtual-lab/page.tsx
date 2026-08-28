@@ -1,10 +1,10 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import Script from 'next/script';
 import { Navbar } from '@/components/Navbar';
 import { Sidebar } from '@/components/Sidebar';
-import { Code2, Play, Terminal, CheckCircle2, RefreshCw, Cpu, BookOpen } from 'lucide-react';
+import { AlertTriangle, Play, RefreshCw } from 'lucide-react';
 import { useLanguage } from '../../context/LanguageContext';
 
 declare global {
@@ -94,16 +94,33 @@ export default function VirtualLabPage() {
   const [pyodide, setPyodide] = useState<any>(null);
   const [pyodideLoading, setPyodideLoading] = useState(true);
 
-  // Initialize Pyodide Wasm
+  /**
+   * Why these two extra pieces of state exist.
+   *
+   * This page used to print a green "Pyodide Wasm Engine Ready" badge that was a
+   * literal, and a hardcoded "Exit Code: 0". Worse, when Pyodide could not load
+   * it ran a "simulated Python engine" that printed pre-written output for each
+   * exercise - so on a machine with no network the lab looked like it had
+   * executed code it never executed. Both are gone: the badge reports the real
+   * engine state, and a run without an engine says so instead of inventing a
+   * result.
+   */
+  const [engineError, setEngineError] = useState<string>(null);
+  const [lastRunOk, setLastRunOk] = useState<boolean>(null);
+
+  // Initialise the in-browser Python runtime (Pyodide, compiled to WebAssembly).
   const initPyodide = async () => {
     try {
       if (window.loadPyodide && !pyodide) {
         const py = await window.loadPyodide();
         setPyodide(py);
-        setPyodideLoading(false);
+        setEngineError(null);
+      } else if (!window.loadPyodide) {
+        setEngineError('The Pyodide script loaded but did not expose loadPyodide().');
       }
-    } catch (e) {
-      console.warn('Pyodide CDN fallback mode active:', e);
+    } catch (e: any) {
+      setEngineError(e?.message || 'Pyodide failed to initialise.');
+    } finally {
       setPyodideLoading(false);
     }
   };
@@ -112,143 +129,212 @@ export default function VirtualLabPage() {
     setSelectedEx(ex);
     setCode(ex.code);
     setOutput('');
+    setLastRunOk(null);
   };
 
   const runCode = async () => {
+    // No engine means no result. Nothing is simulated in its place.
+    if (!pyodide) {
+      setLastRunOk(false);
+      setOutput(
+        'Nothing was executed: the in-browser Python runtime is not available.\n' +
+          (engineError
+            ? `Reason: ${engineError}\n`
+            : 'The Pyodide runtime has not finished downloading yet.\n') +
+          '\nNo output is simulated here. Anything printed without a running\n' +
+          'interpreter would be a fabrication rather than a result.'
+      );
+      return;
+    }
+
     setRunning(true);
-    setOutput('Executing Python script in WebAssembly environment...\n');
+    setLastRunOk(null);
+    setOutput('Executing in the browser Python runtime…\n');
 
     try {
-      if (pyodide) {
-        // Redirect stdout
-        pyodide.runPython(`
+      // Capture stdout so print() lands in the console panel.
+      pyodide.runPython(`
 import sys
 import io
 sys.stdout = io.StringIO()
 `);
-        await pyodide.runPythonAsync(code);
-        const stdout = pyodide.runPython("sys.stdout.getvalue()");
-        setOutput(stdout || "[Script completed with no console output.]");
-      } else {
-        // Standalone simulated Python engine execution
-        await new Promise((resolve) => setTimeout(resolve, 600));
-        let simulatedOut = '';
-        if (code.includes('sample_data')) {
-          simulatedOut = `=== MoSPI National Sample Survey (NSS) Weight Calibration ===\nStratum: Rural Stratum A        | Weight: 0.45 | Mean Exp: Rs.3200\nStratum: Urban Stratum B        | Weight: 0.35 | Mean Exp: Rs.5400\nStratum: Semi-Urban Stratum C   | Weight: 0.2  | Mean Exp: Rs.4100\n------------------------------------------------------------\nTotal Population Weight  : 1.00\nNational Estimated Mean  : Rs. 4150.00\n`;
-        } else if (code.includes('cpi_records')) {
-          simulatedOut = `=== MoSPI Consumer Price Index (CPI) YoY Inflation Report ===\nCommodity Sub-Basket   | Weight | 2025 Index | 2026 Index | YoY Inflation\n====================================================================\nCereals & Products     | 9.67   | 182.4      | 191.2      | 4.82%\nPulses & Products      | 2.38   | 175.1      | 184.8      | 5.54%\nMilk & Products        | 6.61   | 168.0      | 174.5      | 3.87%\nVegetables & Spices    | 6.04   | 195.2      | 210.6      | 7.89%\n`;
-        } else {
-          simulatedOut = `=== MoSPI District Gap Identification Query ===\nFound 2 districts requiring targeted capacity building:\n\n [CRITICAL GAP] District D (West)    | Score: 38.5% | Blocks: 15\n [CRITICAL GAP] District B (East)    | Score: 44.0% | Blocks: 28\n`;
-        }
-        setOutput(simulatedOut);
-      }
+      await pyodide.runPythonAsync(code);
+      const stdout = pyodide.runPython('sys.stdout.getvalue()');
+      setOutput(stdout || '[Script completed with no console output.]');
+      setLastRunOk(true);
     } catch (err: any) {
-      setOutput(`Python Syntax/Execution Error:\n${err.message || err}`);
+      setOutput(`Python error:\n${err?.message || err}`);
+      setLastRunOk(false);
     } finally {
       setRunning(false);
     }
   };
 
+  const engineLabel = pyodide
+    ? 'Python runtime loaded'
+    : pyodideLoading
+    ? 'Loading Python runtime…'
+    : 'Python runtime unavailable';
+  const engineCls = pyodide
+    ? 'border-strong-200 bg-strong-50 text-strong-700'
+    : pyodideLoading
+    ? 'border-rule bg-paper-sunken text-slate-500'
+    : 'border-gap-200 bg-gap-50 text-gap-700';
+
   return (
-    <div className="min-h-screen bg-slate-50 flex flex-col">
+    <div className="flex min-h-screen flex-col bg-paper">
       <Script
         src="https://cdn.jsdelivr.net/pyodide/v0.25.0/full/pyodide.js"
         onLoad={initPyodide}
+        onError={() => {
+          setPyodideLoading(false);
+          setEngineError(
+            'The Pyodide runtime could not be downloaded from the CDN. This page needs network access to execute Python in the browser.'
+          );
+        }}
       />
 
-      <Navbar currentRole="OFFICIAL" />
+      <Navbar />
 
       <div className="flex flex-1">
         <Sidebar role="OFFICIAL" />
 
-        <main className="flex-1 p-6 sm:p-8 max-w-7xl mx-auto space-y-6">
-          {/* Header */}
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-2xl font-extrabold text-slate-900 flex items-center gap-2">
-                <Code2 className="w-7 h-7 text-blue-600" />
+        <main className="mx-auto w-full max-w-5xl flex-1 px-5 py-8 md:px-8">
+          <header className="flex flex-col justify-between gap-4 border-b-2 border-ink pb-6 md:flex-row md:items-end">
+            <div className="min-w-0">
+              <p className="eyebrow">Practical lab</p>
+              <h1 className="mt-2 font-display text-2xl font-semibold tracking-tightest text-ink">
                 {t('virtualLabTitle')}
               </h1>
-              <p className="text-xs text-slate-500 mt-1">
+              <p className="mt-1.5 max-w-xl text-xs leading-relaxed text-slate-500">
                 {t('virtualLabSubtitle')}
               </p>
             </div>
-            <div className="bg-emerald-100 border border-emerald-300 text-emerald-800 px-3 py-1 rounded-xl text-xs font-mono font-bold flex items-center gap-1.5">
-              <Cpu className="w-3.5 h-3.5 text-emerald-600 animate-pulse" />
-              Pyodide Wasm Engine Ready
-            </div>
-          </div>
-
-          {/* Exercise Selector */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-            {EXERCISES.map((ex) => (
-              <button
-                key={ex.id}
-                onClick={() => handleSelectExercise(ex)}
-                className={`p-4 rounded-2xl border text-left transition-all ${
-                  selectedEx.id === ex.id
-                    ? 'bg-blue-600 text-white border-blue-600 shadow-md ring-2 ring-blue-600/30'
-                    : 'bg-white text-slate-800 border-slate-200 hover:border-blue-400'
-                }`}
+            <div className="shrink-0">
+              <span
+                className={`inline-flex items-center border px-2.5 py-1 font-mono text-[10px] uppercase tracking-eyebrow ${engineCls}`}
               >
-                <div className={`text-[10px] font-mono font-bold uppercase mb-1 ${
-                  selectedEx.id === ex.id ? 'text-blue-200' : 'text-blue-600'
-                }`}>
-                  {ex.domain}
-                </div>
-                <div className="font-bold text-xs">{ex.title}</div>
-                <div className={`text-[11px] mt-1 leading-snug line-clamp-2 ${
-                  selectedEx.id === ex.id ? 'text-blue-100' : 'text-slate-500'
-                }`}>
-                  {ex.description}
-                </div>
-              </button>
-            ))}
-          </div>
+                {engineLabel}
+              </span>
+              <p className="mt-1.5 max-w-xs text-[11px] leading-relaxed text-slate-400">
+                Python runs entirely in your browser through Pyodide. Nothing is sent to a server.
+              </p>
+            </div>
+          </header>
 
-          {/* Code Editor & Output Grid */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {/* Editor Box */}
-            <div className="bg-slate-900 rounded-2xl border border-slate-800 shadow-xl overflow-hidden flex flex-col">
-              <div className="bg-slate-950 px-4 py-3 border-b border-slate-800 flex items-center justify-between">
-                <div className="flex items-center space-x-2">
-                  <div className="w-3 h-3 rounded-full bg-rose-500"></div>
-                  <div className="w-3 h-3 rounded-full bg-amber-500"></div>
-                  <div className="w-3 h-3 rounded-full bg-emerald-500"></div>
-                  <span className="text-xs font-mono text-slate-400 ml-2">script.py</span>
-                </div>
+          <div className="mt-8 space-y-8">
+
+          {!pyodideLoading && !pyodide && (
+            <div role="alert" className="flex items-start gap-3 border-l-2 border-gap-600 bg-gap-50 px-4 py-3.5">
+              <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-gap-600" aria-hidden="true" />
+              <div className="min-w-0">
+                <h2 className="text-sm font-medium text-ink">Python runtime not available</h2>
+                <p className="mt-1 break-words font-mono text-[11px] text-gap-700">
+                  {engineError || 'loadPyodide() never became available on this page.'}
+                </p>
+                <p className="mt-1.5 text-xs text-gap-700">
+                  The editor still works, but Run will not produce output. No sample output is shown
+                  in place of a real run.
+                </p>
+              </div>
+            </div>
+          )}
+
+          <section>
+            <div className="border-b border-ink pb-2.5">
+              <p className="eyebrow">Exercises</p>
+              <p className="mt-1.5 max-w-2xl text-xs leading-relaxed text-slate-500">
+                Each exercise loads a working script with its own illustrative figures. Edit the code
+                freely; selecting another exercise replaces the editor contents.
+              </p>
+            </div>
+            <ol className="m-0 mt-1 grid list-none grid-cols-1 gap-px bg-rule p-0 sm:grid-cols-3">
+              {EXERCISES.map((ex, idx) => {
+                const active = selectedEx.id === ex.id;
+                return (
+                  <li key={ex.id} className="bg-white">
+                    <button
+                      onClick={() => handleSelectExercise(ex)}
+                      aria-current={active ? 'true' : undefined}
+                      className={`h-full w-full border-l-2 px-4 py-3.5 text-left transition-colors ${
+                        active
+                          ? 'border-l-navy-600 bg-paper-sunken'
+                          : 'border-l-transparent hover:border-l-rule-strong'
+                      }`}
+                    >
+                      <div className="flex items-baseline gap-2">
+                        <span className="font-mono text-[11px] text-slate-400 tnum">
+                          {String(idx + 1).padStart(2, '0')}
+                        </span>
+                        <span className="eyebrow">{ex.domain}</span>
+                      </div>
+                      <h3
+                        className={`mt-1.5 text-sm font-medium ${active ? 'text-ink' : 'text-slate-600'}`}
+                      >
+                        {ex.title.replace(/^\d+\.\s*/, '')}
+                      </h3>
+                      <p className="mt-1 text-[11px] leading-relaxed text-slate-500">
+                        {ex.description}
+                      </p>
+                    </button>
+                  </li>
+                );
+              })}
+            </ol>
+          </section>
+
+          {/* Editor and console. The console reports what actually happened:
+              no result line is printed until a run has been attempted. */}
+          <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+            <section className="flex flex-col border border-ink bg-white">
+              <div className="flex items-center justify-between gap-3 border-b border-rule bg-paper-sunken px-4 py-2.5">
+                <span className="font-mono text-[11px] text-slate-600">script.py</span>
                 <button
                   onClick={runCode}
                   disabled={running}
-                  className="bg-blue-600 hover:bg-blue-500 text-white px-4 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-all shadow-md disabled:opacity-50"
+                  className="inline-flex h-9 items-center gap-1.5 border border-navy-600 bg-navy-600 px-4 text-xs font-medium text-paper transition-colors hover:bg-navy-700 disabled:opacity-50"
                 >
-                  {running ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Play className="w-3.5 h-3.5 fill-current" />}
+                  {running ? (
+                    <RefreshCw className="h-3.5 w-3.5 animate-spin" aria-hidden="true" />
+                  ) : (
+                    <Play className="h-3.5 w-3.5" aria-hidden="true" />
+                  )}
                   <span>{running ? t('runningCode') : t('runCode')}</span>
                 </button>
               </div>
 
+              <label htmlFor="lab-editor" className="sr-only">
+                Python source for the selected exercise
+              </label>
               <textarea
+                id="lab-editor"
                 value={code}
                 onChange={(e) => setCode(e.target.value)}
-                className="w-full h-80 bg-slate-900 text-slate-200 font-mono text-xs p-4 focus:outline-none resize-none leading-relaxed"
+                className="h-80 w-full resize-none bg-white p-4 font-mono text-xs leading-relaxed text-ink focus:outline-none focus:ring-1 focus:ring-inset focus:ring-navy-600"
                 spellCheck={false}
               />
-            </div>
+            </section>
 
-            {/* Terminal Console Output */}
-            <div className="bg-slate-900 rounded-2xl border border-slate-800 shadow-xl overflow-hidden flex flex-col">
-              <div className="bg-slate-950 px-4 py-3 border-b border-slate-800 flex items-center justify-between">
-                <div className="flex items-center space-x-2 text-slate-300">
-                  <Terminal className="w-4 h-4 text-emerald-400" />
-                  <span className="text-xs font-mono font-bold text-slate-300">{t('stdoutOutput')}</span>
-                </div>
-                <span className="text-[10px] font-mono text-emerald-400">Exit Code: 0</span>
+            <section className="flex flex-col border border-ink bg-ink">
+              <div className="flex items-center justify-between gap-3 border-b border-slate-700 px-4 py-2.5">
+                <span className="font-mono text-[11px] uppercase tracking-eyebrow text-slate-400">
+                  {t('stdoutOutput')}
+                </span>
+                <span className="font-mono text-[10px] uppercase tracking-eyebrow text-slate-400">
+                  {running
+                    ? 'Running'
+                    : lastRunOk === true
+                    ? 'Completed'
+                    : lastRunOk === false
+                    ? 'Failed'
+                    : 'Not run'}
+                </span>
               </div>
-
-              <pre className="w-full h-80 bg-slate-950 text-emerald-400 font-mono text-xs p-4 overflow-y-auto whitespace-pre-wrap leading-relaxed">
-                {output || '// Click "Run Python Code" to execute script and inspect output.'}
+              <pre className="h-80 w-full overflow-y-auto whitespace-pre-wrap p-4 font-mono text-xs leading-relaxed text-paper">
+                {output || 'Run the script to see its output here.'}
               </pre>
-            </div>
+            </section>
+          </div>
           </div>
         </main>
       </div>

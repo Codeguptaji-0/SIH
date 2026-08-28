@@ -3,7 +3,7 @@
 import React, { useState } from 'react';
 import { Navbar } from '@/components/Navbar';
 import { Sidebar } from '@/components/Sidebar';
-import { Upload, FileText, CheckCircle2, Sparkles, AlertTriangle, ArrowRight, ScanLine } from 'lucide-react';
+import { AlertTriangle, ArrowRight, Loader2 } from 'lucide-react';
 import Link from 'next/link';
 import { apiJson, ApiError } from '@/app/lib/api';
 
@@ -120,32 +120,41 @@ export default function UploadMaterialsPage() {
     !!uploadResult && (uploadResult.status !== 'READY' || uploadResult.chunks_extracted === 0);
 
   return (
-    <div className="min-h-screen bg-slate-50 flex flex-col">
-      <Navbar currentRole="TRAINER" />
+    <div className="flex min-h-screen flex-col bg-paper">
+      <Navbar />
 
       <div className="flex flex-1">
         <Sidebar role="TRAINER" />
 
-        <main className="flex-1 p-6 sm:p-8 max-w-5xl mx-auto space-y-6 w-full">
-          <div>
-            <h1 className="text-2xl font-extrabold text-slate-900">Upload Learning Materials</h1>
-            <p className="text-xs text-slate-500 mt-1">
+        <main className="mx-auto w-full max-w-5xl flex-1 px-5 py-8 md:px-8">
+          <header className="border-b-2 border-ink pb-6">
+            <p className="eyebrow">Trainer tools / learning materials</p>
+            <h1 className="mt-2 font-display text-2xl font-semibold tracking-tightest text-ink">
+              Upload learning materials
+            </h1>
+            <p className="mt-1.5 max-w-xl text-xs leading-relaxed text-slate-500">
               Upload a PDF or TXT training document to extract its text, then generate assessment
-              MCQs for trainer review
+              MCQs for trainer review.
             </p>
-          </div>
+          </header>
 
-          {/* Upload Card */}
-          <div className="bg-white p-8 rounded-3xl border border-slate-200 shadow-sm space-y-6">
-            <form onSubmit={handleUpload} className="space-y-4">
-              <div className="border-2 border-dashed border-slate-300 rounded-3xl p-8 bg-slate-50 flex flex-col items-center justify-center text-center">
-                <div className="w-14 h-14 bg-blue-100 text-blue-600 rounded-2xl flex items-center justify-center mb-3">
-                  <Upload className="w-7 h-7" aria-hidden="true" />
-                </div>
-                <label htmlFor="material-file" className="text-sm font-bold text-slate-800">
+          <div className="mt-8 space-y-8">
+
+          <section>
+            <div className="border-b border-ink pb-2.5">
+              <p className="eyebrow">Source document</p>
+              <p className="mt-1.5 max-w-2xl text-xs leading-relaxed text-slate-500">
+                Text is extracted from the file itself, so a scanned PDF with no selectable text
+                cannot be processed.
+              </p>
+            </div>
+
+            <form onSubmit={handleUpload} className="mt-4 space-y-4">
+              <div className="border border-dashed border-rule-strong bg-paper-sunken px-5 py-6">
+                <label htmlFor="material-file" className="eyebrow">
                   Select a PDF or TXT training manual
                 </label>
-                <p className="text-xs text-slate-400 mt-1">
+                <p className="mt-2 max-w-xl text-xs leading-relaxed text-slate-500">
                   Maximum file size {MAX_UPLOAD_MB} MB. Scanned PDFs with no selectable text cannot
                   be processed.
                 </p>
@@ -155,95 +164,117 @@ export default function UploadMaterialsPage() {
                   type="file"
                   accept=".pdf,.txt"
                   onChange={handleFileChange}
-                  className="mt-4 text-xs text-slate-600 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 cursor-pointer"
+                  className="mt-4 block w-full cursor-pointer text-xs text-slate-600 file:mr-4 file:border file:border-rule-strong file:bg-white file:px-3 file:py-2 file:text-xs file:font-medium file:text-ink"
                 />
               </div>
 
               {file && (
-                <div className="flex flex-wrap items-center justify-between gap-3 bg-blue-50 p-3 rounded-xl border border-blue-200 text-xs">
-                  <span className="font-semibold text-blue-900 flex items-center gap-2">
-                    <FileText className="w-4 h-4 text-blue-600" aria-hidden="true" /> {file.name} (
-                    {(file.size / 1024 / 1024).toFixed(2)} MB)
-                  </span>
+                <div className="flex flex-wrap items-center justify-between gap-3 border border-rule bg-white px-4 py-3.5">
+                  <p className="min-w-0 text-xs text-ink">
+                    <span className="break-all font-mono text-[11px]">{file.name}</span>{' '}
+                    <span className="text-slate-500 tnum">
+                      ({(file.size / 1024 / 1024).toFixed(2)} MB)
+                    </span>
+                  </p>
                   <button
                     type="submit"
                     disabled={uploading}
-                    className="bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white font-bold px-4 py-2 rounded-lg transition-colors"
+                    className="inline-flex h-11 shrink-0 items-center gap-2 border border-navy-600 bg-navy-600 px-5 text-sm font-medium text-paper transition-colors hover:bg-navy-700 disabled:opacity-50"
                   >
-                    {uploading ? 'Uploading...' : 'Upload & Extract Text'}
+                    {uploading ? (
+                      <>
+                        <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> Uploading
+                      </>
+                    ) : (
+                      'Upload and extract text'
+                    )}
                   </button>
                 </div>
               )}
             </form>
-          </div>
+          </section>
 
           {uploadError && (
             <div
               role="alert"
-              className="bg-white p-6 rounded-2xl border border-rose-200 shadow-sm space-y-2"
+              className="flex items-start gap-3 border-l-2 border-gap-600 bg-gap-50 px-4 py-3.5"
             >
-              <div className="flex items-center gap-2 text-rose-700">
-                <AlertTriangle className="w-5 h-5" aria-hidden="true" />
-                <h2 className="text-sm font-bold">Upload rejected</h2>
+              <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-gap-600" aria-hidden="true" />
+              <div className="min-w-0">
+                <h2 className="text-sm font-medium text-ink">Upload rejected</h2>
+                <p className="mt-1 break-words font-mono text-[11px] text-gap-700">{uploadError}</p>
+                <p className="mt-1.5 text-xs text-gap-700">
+                  Nothing was stored and no questions were generated.
+                </p>
               </div>
-              <p className="text-xs text-rose-800 font-mono break-words">{uploadError}</p>
-              <p className="text-[11px] text-slate-500">
-                Nothing was stored and no questions were generated.
-              </p>
             </div>
           )}
 
           {uploadResult && (
-            <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-4">
-              {extractionFailed ? (
-                <div className="flex items-start gap-3 text-amber-700">
-                  <ScanLine className="w-5 h-5 mt-0.5 flex-shrink-0" aria-hidden="true" />
-                  <div>
-                    <h2 className="text-sm font-bold text-slate-900">
+            <section className="border border-rule bg-white">
+              <div className="border-b border-rule px-5 py-4">
+                <p className="eyebrow">Extraction result</p>
+                {extractionFailed ? (
+                  <>
+                    <h2 className="mt-2 font-display text-lg font-semibold tracking-tightest text-ink">
                       Text extraction failed - no questions can be generated
                     </h2>
-                    <p className="text-xs text-amber-800 mt-1 leading-relaxed">
+                    <p className="mt-1.5 max-w-xl text-xs leading-relaxed text-watch-700">
                       No selectable text was found in this file. If it is a scanned document it must
                       be run through OCR before MCQs can be generated from it. Re-upload a
                       text-based PDF or a TXT file.
                     </p>
-                  </div>
-                </div>
-              ) : (
-                <div className="flex items-center gap-3 text-emerald-700">
-                  <CheckCircle2 className="w-5 h-5" aria-hidden="true" />
-                  <h2 className="text-sm font-bold text-slate-900">Text extraction completed</h2>
-                </div>
-              )}
+                  </>
+                ) : (
+                  <h2 className="mt-2 font-display text-lg font-semibold tracking-tightest text-ink">
+                    Text extraction completed
+                  </h2>
+                )}
+              </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-4 gap-3 text-xs">
-                <div className="bg-slate-50 p-3 rounded-xl border border-slate-200 font-mono break-all">
-                  Document ID: {uploadResult.id}
+              <dl className="m-0 grid grid-cols-1 gap-px bg-rule sm:grid-cols-3">
+                <div className="bg-white px-5 py-4">
+                  <dt className="eyebrow">Pages</dt>
+                  <dd className="m-0 mt-1.5 font-display text-3xl font-semibold text-ink tnum">
+                    {uploadResult.page_count}
+                  </dd>
                 </div>
-                <div className="bg-slate-50 p-3 rounded-xl border border-slate-200">
-                  Pages: {uploadResult.page_count}
+                <div className="bg-white px-5 py-4">
+                  <dt className="eyebrow">Text chunks</dt>
+                  <dd className="m-0 mt-1.5 font-display text-3xl font-semibold text-ink tnum">
+                    {uploadResult.chunks_extracted}
+                  </dd>
                 </div>
-                <div className="bg-slate-50 p-3 rounded-xl border border-slate-200">
-                  Text chunks: {uploadResult.chunks_extracted}
+                <div className="bg-white px-5 py-4">
+                  <dt className="eyebrow">Status</dt>
+                  <dd className="m-0 mt-2.5">
+                    <span
+                      className={`border px-2 py-0.5 font-mono text-[10px] uppercase tracking-eyebrow ${
+                        extractionFailed
+                          ? 'border-watch-200 bg-watch-50 text-watch-700'
+                          : 'border-strong-200 bg-strong-50 text-strong-700'
+                      }`}
+                    >
+                      {extractionFailed ? 'FAILED' : uploadResult.status}
+                    </span>
+                  </dd>
                 </div>
-                <div className="bg-slate-50 p-3 rounded-xl border border-slate-200">
-                  Status:{' '}
-                  <span
-                    className={`font-bold ${extractionFailed ? 'text-amber-700' : 'text-emerald-700'}`}
-                  >
-                    {extractionFailed ? 'FAILED' : uploadResult.status}
-                  </span>
-                </div>
+              </dl>
+
+              <div className="border-t border-rule px-5 py-3.5">
+                <p className="eyebrow">Document ID</p>
+                <p className="mt-1 break-all font-mono text-[11px] text-ink">{uploadResult.id}</p>
               </div>
 
               {/* MCQ generation - only offered when there is real extracted text to work from */}
-              <div className="pt-4 border-t border-slate-100 space-y-3">
-                <div className="flex flex-wrap items-center justify-between gap-3">
-                  <div>
-                    <h3 className="text-xs font-bold text-slate-800">
+              <div className="border-t border-rule px-5 py-4">
+                <div className="flex flex-wrap items-end justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="eyebrow">Question generation</p>
+                    <h3 className="mt-2 text-sm font-medium text-ink">
                       Generate multiple choice questions
                     </h3>
-                    <p className="text-[11px] text-slate-400">
+                    <p className="mt-1 max-w-xl text-[11px] leading-relaxed text-slate-500">
                       Generated questions are created with review_status PENDING and are not served
                       to officials until a trainer approves them.
                     </p>
@@ -252,44 +283,58 @@ export default function UploadMaterialsPage() {
                   {genResult ? (
                     <Link
                       href="/trainer/review"
-                      className="bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold px-5 py-2.5 rounded-xl shadow transition-all flex items-center gap-2"
+                      className="inline-flex h-11 shrink-0 items-center gap-2 border border-navy-600 bg-navy-600 px-5 text-sm font-medium text-paper transition-colors hover:bg-navy-700"
                     >
                       Review {genResult.questions_generated} pending question(s)
-                      <ArrowRight className="w-4 h-4" aria-hidden="true" />
+                      <ArrowRight className="h-4 w-4" aria-hidden="true" />
                     </Link>
                   ) : (
                     <button
                       type="button"
                       onClick={handleGenerateQuestions}
                       disabled={genLoading || extractionFailed}
-                      className="bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 disabled:cursor-not-allowed text-white text-xs font-bold px-5 py-2.5 rounded-xl shadow transition-all flex items-center gap-2"
+                      className="inline-flex h-11 shrink-0 items-center gap-2 border border-navy-600 bg-navy-600 px-5 text-sm font-medium text-paper transition-colors hover:bg-navy-700 disabled:opacity-50"
                     >
-                      <Sparkles className="w-4 h-4" aria-hidden="true" />
-                      {genLoading ? 'Generating...' : 'Generate MCQs'}
+                      {genLoading ? (
+                        <>
+                          <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> Generating
+                        </>
+                      ) : (
+                        'Generate MCQs'
+                      )}
                     </button>
                   )}
                 </div>
 
                 {genResult && genResult.questions_generated === 0 && (
-                  <p className="text-xs text-amber-800 bg-amber-50 border border-amber-200 rounded-xl p-3">
+                  <p className="mt-3 border-l-2 border-rule-strong bg-paper-sunken px-4 py-3 text-xs leading-relaxed text-slate-500">
                     The request succeeded but produced no questions. Nothing has been added to the
                     review queue.
                   </p>
                 )}
 
                 {genError && (
-                  <p
+                  <div
                     role="alert"
-                    className="text-xs text-rose-800 bg-rose-50 border border-rose-200 rounded-xl p-3 font-mono break-words"
+                    className="mt-3 flex items-start gap-3 border-l-2 border-gap-600 bg-gap-50 px-4 py-3.5"
                   >
-                    Question generation failed: {genError}
-                  </p>
+                    <AlertTriangle
+                      className="mt-0.5 h-4 w-4 shrink-0 text-gap-600"
+                      aria-hidden="true"
+                    />
+                    <div className="min-w-0">
+                      <h4 className="text-sm font-medium text-ink">Question generation failed</h4>
+                      <p className="mt-1 break-words font-mono text-[11px] text-gap-700">
+                        {genError}
+                      </p>
+                    </div>
+                  </div>
                 )}
               </div>
-
-            </div>
+            </section>
           )}
 
+          </div>
         </main>
       </div>
     </div>

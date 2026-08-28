@@ -3,7 +3,7 @@
 import React, { useEffect, useState } from 'react';
 import { Navbar } from '@/components/Navbar';
 import { Sidebar } from '@/components/Sidebar';
-import { UserCheck, Shield, CheckCircle2, Award, Briefcase, Building, AlertTriangle, User } from 'lucide-react';
+import { AlertTriangle, User } from 'lucide-react';
 import { ApiError, apiJson } from '@/app/lib/api';
 
 interface ProfileData {
@@ -70,134 +70,162 @@ export default function ProfilePage() {
 
   /** One field of the profile grid, or a "Not set" hint when it is empty. */
   const Field = ({ label, value }: { label: string; value: string | null }) => (
-    <div className="bg-slate-50 p-3.5 rounded-xl border border-slate-200/80">
-      <div className="text-slate-400 font-medium">{label}</div>
-      <div className={`mt-1 ${value ? 'font-bold text-slate-800' : 'text-slate-400 italic'}`}>
+    <div className="bg-white px-4 py-3.5">
+      <dt className="eyebrow">{label}</dt>
+      <dd className={`mt-1.5 text-sm ${value ? 'font-medium text-ink' : 'text-slate-400'}`}>
         {value || 'Not set'}
-      </div>
+      </dd>
     </div>
   );
 
   return (
-    <div className="min-h-screen bg-slate-50 flex flex-col">
-      <Navbar currentRole="OFFICIAL" userName={fullName || undefined} />
+    <div className="flex min-h-screen flex-col bg-paper">
+      <Navbar userName={fullName || undefined} />
 
       <div className="flex flex-1">
         <Sidebar role="OFFICIAL" />
 
-        <main className="flex-1 p-6 sm:p-8 max-w-7xl mx-auto space-y-6">
-          <div>
-            <h1 className="text-2xl font-extrabold text-slate-900">Official Competency Profile</h1>
-            <p className="text-xs text-slate-500 mt-1">Role definition and MoSPI 4-domain competency framework targets</p>
-          </div>
+        <main className="mx-auto w-full max-w-5xl flex-1 px-5 py-8 md:px-8">
+          <header className="border-b-2 border-ink pb-6">
+            <p className="eyebrow">Officer record</p>
+            <h1 className="mt-2 font-display text-2xl font-semibold tracking-tightest text-ink">
+              Competency profile
+            </h1>
+            <p className="mt-1.5 max-w-xl text-xs leading-relaxed text-slate-500">
+              The role definition these scores are measured against, and the four-domain framework
+              the questions are drawn from.
+            </p>
+          </header>
 
-          {/* Profile Summary Card: loading, failed, not-recorded, or real data. */}
+          <div className="mt-8">
+
+          {/* Profile summary: loading, failed, not-recorded, or real data. */}
           {loading ? (
-            <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-4">
-              <div className="flex items-center space-x-4">
-                <div className="w-16 h-16 rounded-2xl bg-slate-100 animate-pulse" />
+            <div className="border border-rule bg-white p-6">
+              <div className="flex items-center gap-4">
+                <div className="h-12 w-12 animate-pulse bg-paper-sunken" />
                 <div className="space-y-2">
-                  <div className="h-5 w-48 bg-slate-100 rounded animate-pulse" />
-                  <div className="h-3 w-64 bg-slate-100 rounded animate-pulse" />
+                  <div className="h-5 w-48 animate-pulse bg-paper-sunken" />
+                  <div className="h-3 w-64 animate-pulse bg-paper-sunken" />
                 </div>
               </div>
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-4 border-t border-slate-100">
+              <div className="mt-5 grid grid-cols-1 gap-4 border-t border-rule pt-5 sm:grid-cols-3">
                 {[0, 1, 2].map((i) => (
-                  <div key={i} className="h-16 bg-slate-50 rounded-xl animate-pulse" />
+                  <div key={i} className="h-14 animate-pulse bg-paper-sunken" />
                 ))}
               </div>
             </div>
           ) : error && !missing ? (
-            <div role="alert" className="bg-white p-6 rounded-2xl border border-rose-200 shadow-sm flex items-start gap-3">
-              <AlertTriangle className="w-5 h-5 text-rose-600 flex-shrink-0 mt-0.5" />
+            <div
+              role="alert"
+              className="flex items-start gap-3 border-l-2 border-gap-600 bg-gap-50 px-4 py-3.5"
+            >
+              <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-gap-600" aria-hidden="true" />
               <div>
-                <h2 className="text-sm font-bold text-slate-900">Profile could not be loaded</h2>
-                <p className="text-xs text-rose-700 mt-1">{error}</p>
+                <h2 className="text-sm font-medium text-ink">Profile could not be loaded</h2>
+                <p className="mt-1 text-xs text-gap-700">{error}</p>
               </div>
             </div>
           ) : missing ? (
-            <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm text-center">
-              <User className="w-6 h-6 text-slate-400 mx-auto" />
-              <h2 className="text-sm font-bold text-slate-900 mt-2">No profile data recorded yet</h2>
-              <p className="text-xs text-slate-500 mt-1">
-                Once a profile record exists, your role, assignment and training history appear here and
-                are used to target recommendations.
+            <div className="border border-rule bg-white px-5 py-6">
+              <h2 className="text-sm font-medium text-ink">No profile data recorded yet</h2>
+              <p className="mt-1 max-w-lg text-xs leading-relaxed text-slate-500">
+                Once a profile record exists, your role, assignment and training history appear here
+                and are used to target recommendations.
               </p>
-              {error && <p className="text-[11px] text-slate-400 mt-2 font-mono">{error}</p>}
+              {error && <p className="mt-2 font-mono text-[11px] text-slate-400">{error}</p>}
             </div>
           ) : (
-          <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-6">
-            <div className="flex items-center space-x-4">
-              <div className="w-16 h-16 rounded-2xl bg-blue-600 text-white font-bold text-2xl flex items-center justify-center shadow-md">
-                {fullName ? fullName.charAt(0) : <User className="w-7 h-7" />}
-              </div>
-              <div>
-                <h2 className={`text-xl font-bold ${fullName ? 'text-slate-900' : 'text-slate-400 italic'}`}>
+          <div className="border border-rule bg-white">
+            <div className="flex items-center gap-4 border-b border-ink px-5 py-5">
+              <span
+                aria-hidden="true"
+                className="grid h-12 w-12 shrink-0 place-items-center bg-ink font-display text-xl font-bold text-paper"
+              >
+                {fullName ? fullName.charAt(0).toUpperCase() : <User className="h-5 w-5" />}
+              </span>
+              <div className="min-w-0">
+                <h2
+                  className={`font-display text-lg font-semibold tracking-tight ${
+                    fullName ? 'text-ink' : 'text-slate-400'
+                  }`}
+                >
                   {fullName || 'Name not set'}
                 </h2>
-                <div className="flex items-center space-x-3 text-xs text-slate-500 mt-1">
-                  <span className="flex items-center gap-1 font-semibold text-slate-700">
-                    <Briefcase className="w-3.5 h-3.5 text-blue-600" /> {designation || '—'}
-                  </span>
-                  •
-                  <span className="flex items-center gap-1 font-semibold text-slate-700">
-                    <Building className="w-3.5 h-3.5 text-blue-600" /> {department || '—'}
-                  </span>
-                </div>
+                <p className="mt-0.5 text-xs text-slate-500">
+                  {designation || '—'} &nbsp;·&nbsp; {department || '—'}
+                </p>
               </div>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-4 border-t border-slate-100 text-xs">
-              <Field label="Job Role" value={text(profile?.job_role)} />
-              <Field label="Current Assignment" value={text(profile?.current_assignment)} />
-              <Field label="Educational Qualification" value={text(profile?.educational_qualification)} />
+            <dl className="m-0 grid grid-cols-1 gap-px bg-rule sm:grid-cols-3">
+              <Field label="Job role" value={text(profile?.job_role)} />
+              <Field label="Current assignment" value={text(profile?.current_assignment)} />
+              <Field label="Educational qualification" value={text(profile?.educational_qualification)} />
               <Field
-                label="Experience Level"
+                label="Experience"
                 value={
                   typeof profile?.experience_years === 'number' && profile.experience_years > 0
-                    ? `${profile.experience_years} Years`
+                    ? `${profile.experience_years} years`
                     : null
                 }
               />
-              <div className="bg-slate-50 p-3.5 rounded-xl border border-slate-200/80 sm:col-span-2">
-                <div className="text-slate-400 font-medium mb-1">Previous Trainings</div>
-                <div className="flex flex-wrap gap-1.5">
+              <div className="bg-white px-4 py-3.5 sm:col-span-2">
+                <dt className="eyebrow">Previous trainings</dt>
+                <dd className="mt-1.5 flex flex-wrap gap-1.5">
                   {trainings.length > 0 ? (
                     trainings.map((tr: string, idx: number) => (
-                      <span key={idx} className="bg-blue-50 text-blue-700 border border-blue-200 px-2 py-0.5 rounded text-[11px] font-medium">
+                      <span
+                        key={idx}
+                        className="border border-rule bg-paper-sunken px-2 py-0.5 text-[11px] text-ink"
+                      >
                         {tr}
                       </span>
                     ))
                   ) : (
-                    <span className="text-slate-400 italic">None recorded</span>
+                    <span className="text-sm text-slate-400">None recorded</span>
                   )}
-                </div>
+                </dd>
               </div>
-            </div>
+            </dl>
           </div>
           )}
+          </div>
 
-          {/* Competencies Framework Breakdown */}
-          <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-4">
-            <h3 className="text-sm font-bold text-slate-800">MoSPI 4-Domain Target Framework</h3>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {/* The framework the questions and targets are drawn from. */}
+          <section className="mt-9">
+            <p className="eyebrow">Framework</p>
+            <h2 className="mt-2 font-display text-lg font-semibold tracking-tight text-ink">
+              MoSPI four-domain target framework
+            </h2>
+            <dl className="m-0 mt-4 grid grid-cols-1 border-t border-ink md:grid-cols-2 md:gap-x-10">
               {[
-                { domain: 'Statistical Competencies', desc: 'Survey Design, Sampling, National Accounts, Price Statistics, SDG Indicators, Metadata Standards, Data Quality Frameworks.' },
-                { domain: 'Technical Competencies', desc: 'Python, R, SQL, Stata, SPSS, GIS, Data Visualization, AI/ML, Cloud Computing, Open Data.' },
-                { domain: 'Digital Governance', desc: 'Cybersecurity, Data Privacy (DPDP Act), Digital Signatures, Government Cloud, Digital Public Infrastructure.' },
-                { domain: 'Behavioural & Managerial', desc: 'Leadership, Communication, Survey Project Management, Ethics, Decision Making, Change Management.' },
-              ].map((d, i) => (
-                <div key={i} className="p-4 bg-slate-50 rounded-xl border border-slate-200">
-                  <div className="flex items-center space-x-2 mb-1.5">
-                    <Shield className="w-4 h-4 text-blue-600" />
-                    <h4 className="text-xs font-bold text-slate-900">{d.domain}</h4>
-                  </div>
-                  <p className="text-xs text-slate-600 leading-relaxed">{d.desc}</p>
+                {
+                  domain: 'Statistical',
+                  desc: 'Survey design, sampling, national accounts, price statistics, SDG indicators, metadata standards, data quality frameworks.',
+                },
+                {
+                  domain: 'Technical',
+                  desc: 'Python, R, SQL, Stata, SPSS, GIS, data visualization, machine learning, cloud computing, open data.',
+                },
+                {
+                  domain: 'Digital governance',
+                  desc: 'Cybersecurity, data privacy under the DPDP Act, digital signatures, government cloud, digital public infrastructure.',
+                },
+                {
+                  domain: 'Behavioural and managerial',
+                  desc: 'Leadership, communication, survey project management, ethics, decision making, change management.',
+                },
+              ].map((d) => (
+                <div key={d.domain} className="border-b border-rule py-4">
+                  <dt className="font-display text-sm font-semibold uppercase tracking-eyebrow text-ink">
+                    {d.domain}
+                  </dt>
+                  <dd className="mt-1.5 text-sm leading-relaxed text-slate-600">{d.desc}</dd>
                 </div>
               ))}
-            </div>
-          </div>
+            </dl>
+          </section>
         </main>
       </div>
     </div>

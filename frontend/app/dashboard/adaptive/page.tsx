@@ -133,13 +133,13 @@ function describeError(e: unknown): string {
 }
 
 const LEVEL_STYLES: Record<string, string> = {
-  easy: 'bg-emerald-100 text-emerald-800 border-emerald-300',
-  medium: 'bg-amber-100 text-amber-800 border-amber-300',
-  hard: 'bg-rose-100 text-rose-800 border-rose-300',
+  easy: 'border-strong-200 bg-strong-50 text-strong-700',
+  medium: 'border-watch-200 bg-watch-50 text-watch-700',
+  hard: 'border-gap-200 bg-gap-50 text-gap-700',
 };
 
 function levelBadge(level?: string): string {
-  return LEVEL_STYLES[(level || '').toLowerCase()] || 'bg-slate-100 text-slate-700 border-slate-300';
+  return LEVEL_STYLES[(level || '').toLowerCase()] || 'border-rule bg-paper-sunken text-slate-500';
 }
 
 /** Direction of a ladder move, used to pick the arrow and its colour. */
@@ -151,9 +151,9 @@ function moveKind(before?: string, after?: string): 'up' | 'down' | 'hold' {
 }
 
 function MoveIcon({ kind }: { kind: 'up' | 'down' | 'hold' }) {
-  if (kind === 'up') return <ChevronsUp className="w-4 h-4 text-rose-600" />;
-  if (kind === 'down') return <ChevronsDown className="w-4 h-4 text-emerald-600" />;
-  return <Minus className="w-4 h-4 text-slate-400" />;
+  if (kind === 'up') return <ChevronsUp className="h-4 w-4 text-gap-600" aria-hidden="true" />;
+  if (kind === 'down') return <ChevronsDown className="h-4 w-4 text-strong-600" aria-hidden="true" />;
+  return <Minus className="h-4 w-4 text-slate-400" aria-hidden="true" />;
 }
 
 /**
@@ -170,15 +170,15 @@ function LadderRail({ level }: { level?: string }) {
         const isActive = lv === active;
         const height = lv === 'hard' ? 'h-10' : lv === 'medium' ? 'h-7' : 'h-4';
         return (
-          <div key={lv} className="flex flex-col items-center gap-1">
+          <div key={lv} className="flex flex-col items-center gap-1.5">
             <div
-              className={`w-12 rounded-t-md border transition-all ${height} ${
-                isActive ? levelBadge(lv) : 'bg-slate-100 border-slate-200'
+              className={`w-10 border ${height} ${
+                isActive ? 'border-ink bg-navy-600' : 'border-rule bg-paper-sunken'
               }`}
             />
             <span
-              className={`text-[10px] font-mono font-bold uppercase ${
-                isActive ? 'text-slate-900' : 'text-slate-400'
+              className={`font-mono text-[10px] uppercase tracking-eyebrow ${
+                isActive ? 'text-ink' : 'text-slate-400'
               }`}
             >
               {lv}
@@ -316,19 +316,20 @@ export default function AdaptiveAssessmentPage() {
   const inRun = !!sessionId && !!question;
 
   return (
-    <div className="min-h-screen bg-slate-50 flex flex-col">
-      <Navbar currentRole="OFFICIAL" />
+    <div className="flex min-h-screen flex-col bg-paper">
+      <Navbar />
 
       <div className="flex flex-1">
         <Sidebar role="OFFICIAL" />
 
-        <main className="flex-1 p-6 sm:p-8 max-w-6xl mx-auto space-y-6 w-full">
-          <header className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
-            <div>
-              <h1 className="text-2xl font-extrabold text-slate-900">
+        <main className="mx-auto w-full max-w-5xl flex-1 px-5 py-8 md:px-8">
+          <header className="flex flex-col justify-between gap-4 border-b-2 border-ink pb-6 md:flex-row md:items-end">
+            <div className="min-w-0">
+              <p className="eyebrow">Adaptive run</p>
+              <h1 className="mt-2 font-display text-2xl font-semibold tracking-tightest text-ink">
                 {t('navAdaptive')}
               </h1>
-              <p className="text-xs text-slate-500 mt-1 max-w-2xl">
+              <p className="mt-1.5 max-w-xl text-xs leading-relaxed text-slate-500">
                 {t('adaptiveSubtitle')}
               </p>
             </div>
@@ -336,64 +337,65 @@ export default function AdaptiveAssessmentPage() {
               <button
                 onClick={() => start(10)}
                 disabled={starting}
-                className="flex items-center gap-2 bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white font-bold px-5 py-3 rounded-xl shadow-lg text-xs flex-shrink-0"
+                className="inline-flex h-11 shrink-0 items-center gap-2 border border-navy-600 bg-navy-600 px-5 text-sm font-medium text-paper transition-colors hover:bg-navy-700 disabled:opacity-50"
               >
                 {starting ? (
-                  <Loader2 className="w-4 h-4 animate-spin" />
+                  <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
                 ) : (
-                  <Play className="w-4 h-4" />
+                  <Play className="h-4 w-4" aria-hidden="true" />
                 )}
                 {t('adaptiveStart')}
               </button>
             )}
           </header>
 
+          <div className="mt-8 space-y-8">
+
           {error && (
-            <div className="bg-rose-50 border border-rose-200 p-5 rounded-2xl space-y-1">
-              <div className="flex items-center gap-2 text-sm font-bold text-rose-800">
-                <AlertTriangle className="w-4 h-4" /> {t('adaptiveError')}
+            <div role="alert" className="flex items-start gap-3 border-l-2 border-gap-600 bg-gap-50 px-4 py-3.5">
+              <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-gap-600" aria-hidden="true" />
+              <div className="min-w-0">
+                <h2 className="text-sm font-medium text-ink">{t('adaptiveError')}</h2>
+                <p className="mt-1 break-words font-mono text-[11px] text-gap-700">{error}</p>
               </div>
-              <p className="text-xs text-rose-700 font-mono break-words">{error}</p>
             </div>
           )}
 
           {emptyPool && (
-            <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-2">
-              <h2 className="text-sm font-bold text-slate-800">{t('adaptiveNoPool')}</h2>
-              <p className="text-xs text-slate-500 max-w-2xl">{emptyPool}</p>
+            <div className="border border-rule bg-white px-5 py-5">
+              <h2 className="text-sm font-medium text-ink">{t('adaptiveNoPool')}</h2>
+              <p className="mt-1 max-w-2xl text-xs leading-relaxed text-slate-500">{emptyPool}</p>
               {typeof poolSize === 'number' && (
-                <p className="text-[11px] text-slate-400 font-mono">
+                <p className="mt-2 font-mono text-[11px] text-slate-400 tnum">
                   approved_pool_size: {poolSize}
                 </p>
               )}
               <Link
                 href="/trainer/review"
-                className="inline-flex items-center gap-1.5 text-xs font-bold text-blue-700 hover:text-blue-900 pt-1"
+                className="mt-3 inline-flex items-center gap-1.5 text-xs font-medium text-navy-600 underline decoration-navy-200 underline-offset-4 hover:decoration-navy-600"
               >
-                {t('adaptiveGoReview')} <ArrowRight className="w-3.5 h-3.5" />
+                {t('adaptiveGoReview')} <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
               </Link>
             </div>
           )}
 
           {(inRun || result) && (
-            <section className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
-              <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-5">
-                <div className="space-y-2">
-                  <span className="text-[10px] font-mono font-bold text-slate-400 uppercase tracking-wider">
-                    {t('adaptiveCurrentLevel')}
-                  </span>
-                  <div className="flex items-end gap-4">
+            <section className="border border-rule bg-white px-5 py-5">
+              <div className="flex flex-col justify-between gap-6 md:flex-row md:items-end">
+                <div>
+                  <p className="eyebrow">{t('adaptiveCurrentLevel')}</p>
+                  <div className="mt-2.5 flex items-end gap-4">
                     <LadderRail level={level} />
                     <span
-                      className={`text-xs font-bold font-mono uppercase px-3 py-1.5 rounded-full border ${levelBadge(level)}`}
+                      className={`border px-2.5 py-1 font-mono text-[10px] uppercase tracking-eyebrow ${levelBadge(level)}`}
                     >
-                      {level || '-'}
+                      {level || '—'}
                     </span>
                   </div>
                 </div>
 
-                <div className="flex-1 md:max-w-xs space-y-2">
-                  <div className="flex justify-between text-[11px] font-mono text-slate-500">
+                <div className="flex-1 md:max-w-xs">
+                  <div className="flex justify-between font-mono text-[11px] text-slate-500 tnum">
                     <span>
                       {t('adaptiveAnswered')}: {answeredSoFar}/{maxQuestions}
                     </span>
@@ -401,14 +403,11 @@ export default function AdaptiveAssessmentPage() {
                       {t('adaptiveCorrect')}: {progress.correct}
                     </span>
                   </div>
-                  <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
-                    <div
-                      className="h-full bg-blue-600 transition-all"
-                      style={{ width: `${pct}%` }}
-                    />
+                  <div className="mt-2 h-[6px] w-full bg-paper-sunken" aria-hidden="true">
+                    <div className="h-full bg-navy-600" style={{ width: `${pct}%` }} />
                   </div>
                   {ladder && (
-                    <p className="text-[11px] text-slate-500 font-mono">
+                    <p className="mt-2 font-mono text-[11px] text-slate-500 tnum">
                       {t('adaptiveStreak')}: +{ladder.consecutive_correct ?? 0}/
                       {ladder.step_up_after ?? 2} · -{ladder.consecutive_wrong ?? 0}/
                       {ladder.step_down_after ?? 2}
@@ -420,288 +419,297 @@ export default function AdaptiveAssessmentPage() {
           )}
 
           {notice && (
-            <div className="bg-amber-50 border border-amber-200 p-4 rounded-xl flex items-start gap-2">
-              <AlertTriangle className="w-4 h-4 text-amber-700 flex-shrink-0 mt-0.5" />
-              <p className="text-xs text-amber-800">{notice}</p>
+            <div className="border-l-2 border-watch-500 bg-watch-50 px-4 py-3">
+              <p className="text-xs leading-relaxed text-watch-700">{notice}</p>
             </div>
           )}
 
           {lastAnswer && (
             <section
-              className={`p-5 rounded-2xl border shadow-sm space-y-3 ${
-                lastAnswer.is_correct
-                  ? 'bg-emerald-50 border-emerald-200'
-                  : 'bg-rose-50 border-rose-200'
+              className={`border border-rule border-l-2 bg-white px-5 py-5 ${
+                lastAnswer.is_correct ? 'border-l-strong-600' : 'border-l-gap-600'
               }`}
             >
-              <div className="flex items-center gap-2">
-                {lastAnswer.is_correct ? (
-                  <Check className="w-4 h-4 text-emerald-700" />
-                ) : (
-                  <X className="w-4 h-4 text-rose-700" />
-                )}
-                <span
-                  className={`text-sm font-bold ${
-                    lastAnswer.is_correct ? 'text-emerald-900' : 'text-rose-900'
-                  }`}
-                >
-                  {lastAnswer.is_correct ? t('adaptiveCorrectAnswer') : t('adaptiveWrongAnswer')}
-                </span>
-                <span className="text-[10px] font-mono text-slate-500 ml-auto">
+              <div className="flex flex-wrap items-baseline justify-between gap-3">
+                <div className="flex items-center gap-2">
+                  {lastAnswer.is_correct ? (
+                    <Check className="h-4 w-4 text-strong-600" aria-hidden="true" />
+                  ) : (
+                    <X className="h-4 w-4 text-gap-600" aria-hidden="true" />
+                  )}
+                  <h2
+                    className={`text-sm font-medium ${
+                      lastAnswer.is_correct ? 'text-strong-700' : 'text-gap-700'
+                    }`}
+                  >
+                    {lastAnswer.is_correct ? t('adaptiveCorrectAnswer') : t('adaptiveWrongAnswer')}
+                  </h2>
+                </div>
+                <span className="font-mono text-[10px] uppercase tracking-eyebrow text-slate-400">
                   {lastAnswer.difficulty} · weight {lastAnswer.weight}
                 </span>
               </div>
 
               {/* The ladder move, stated as the server stated it. This is the whole
                   point of the screen: the level change and its reason, in words. */}
-              <div className="bg-white/70 border border-white rounded-xl p-3 space-y-2">
-                <div className="flex items-center gap-2 flex-wrap">
+              <div className="mt-3.5 border-t border-rule pt-3.5">
+                <div className="flex flex-wrap items-center gap-2">
                   <span
-                    className={`text-[10px] font-bold font-mono uppercase px-2 py-1 rounded border ${levelBadge(ladder?.level_before)}`}
+                    className={`border px-2 py-0.5 font-mono text-[10px] uppercase tracking-eyebrow ${levelBadge(ladder?.level_before)}`}
                   >
-                    {ladder?.level_before || '-'}
+                    {ladder?.level_before || '—'}
                   </span>
                   <MoveIcon kind={moveKind(ladder?.level_before, ladder?.level_after)} />
                   <span
-                    className={`text-[10px] font-bold font-mono uppercase px-2 py-1 rounded border ${levelBadge(ladder?.level_after)}`}
+                    className={`border px-2 py-0.5 font-mono text-[10px] uppercase tracking-eyebrow ${levelBadge(ladder?.level_after)}`}
                   >
-                    {ladder?.level_after || '-'}
+                    {ladder?.level_after || '—'}
                   </span>
-                  <span className="text-[10px] font-mono text-slate-400 uppercase tracking-wider ml-1">
-                    {t('adaptiveLadderMove')}
-                  </span>
+                  <span className="eyebrow ml-1">{t('adaptiveLadderMove')}</span>
                 </div>
-                <p className="text-xs text-slate-700 italic">
-                  {ladder?.adaptation_reason || '-'}
+                <p className="mt-2 max-w-2xl text-xs leading-relaxed text-slate-600">
+                  {ladder?.adaptation_reason || '—'}
                 </p>
               </div>
 
               {lastAnswer.explanation && (
-                <div>
-                  <span className="text-[10px] font-mono font-bold text-slate-500 uppercase tracking-wider">
-                    {t('adaptiveExplanation')}
-                  </span>
-                  <p className="text-xs text-slate-700 mt-1">{lastAnswer.explanation}</p>
+                <div className="mt-3.5 border-t border-rule pt-3.5">
+                  <p className="eyebrow">{t('adaptiveExplanation')}</p>
+                  <p className="mt-1.5 max-w-2xl text-xs leading-relaxed text-slate-600">
+                    {lastAnswer.explanation}
+                  </p>
                 </div>
               )}
             </section>
           )}
 
           {inRun && (
-            <section className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-5">
-              <div className="flex items-start justify-between gap-3 flex-wrap">
-                <div>
-                  <span className="text-[10px] font-mono font-bold text-slate-400 uppercase tracking-wider">
+            <section className="border border-ink bg-white px-5 py-5">
+              <div className="flex flex-wrap items-start justify-between gap-3 border-b border-rule pb-4">
+                <div className="min-w-0">
+                  <p className="eyebrow">
                     {t('adaptiveQuestion')} {answeredSoFar + 1}/{maxQuestions}
-                  </span>
-                  <h2 className="text-base font-bold text-slate-900 mt-1.5 leading-snug">
+                  </p>
+                  <h2 className="mt-2 font-display text-lg font-semibold leading-snug tracking-tight text-ink">
                     {question.question_text}
                   </h2>
-                  <p className="text-[11px] text-slate-500 mt-1.5">
+                  <p className="mt-1.5 text-[11px] text-slate-500">
                     {question.competency_name || 'Competency not recorded'}
                     {question.domain ? ` · ${question.domain}` : ''}
                     {question.source_reference ? ` · ${question.source_reference}` : ''}
                   </p>
                 </div>
                 <span
-                  className={`text-[10px] font-bold font-mono uppercase px-2.5 py-1 rounded-full border flex-shrink-0 ${levelBadge(question.difficulty)}`}
+                  className={`shrink-0 border px-2.5 py-1 font-mono text-[10px] uppercase tracking-eyebrow ${levelBadge(question.difficulty)}`}
                 >
                   {question.difficulty}
                 </span>
               </div>
 
-              <div className="space-y-2">
+              <ol className="m-0 list-none p-0">
                 {(question.options || []).map((opt, idx) => {
                   const isPicked = selected === idx;
                   return (
-                    <button
-                      key={idx}
-                      onClick={() => setSelected(idx)}
-                      disabled={submitting}
-                      className={`w-full text-left flex items-center gap-3 p-3.5 rounded-xl border text-xs transition-all disabled:opacity-60 ${
-                        isPicked
-                          ? 'bg-blue-50 border-blue-400 text-blue-900 font-semibold shadow-sm'
-                          : 'bg-slate-50 border-slate-200 text-slate-700 hover:border-slate-300'
-                      }`}
-                    >
-                      <span
-                        className={`w-6 h-6 rounded-lg flex items-center justify-center text-[10px] font-bold font-mono flex-shrink-0 ${
-                          isPicked ? 'bg-blue-600 text-white' : 'bg-white border border-slate-200 text-slate-500'
+                    <li key={idx} className="border-b border-rule">
+                      <button
+                        onClick={() => setSelected(idx)}
+                        disabled={submitting}
+                        aria-pressed={isPicked}
+                        className={`flex w-full items-baseline gap-3 border-l-2 px-3 py-3.5 text-left text-xs transition-colors disabled:opacity-60 ${
+                          isPicked
+                            ? 'border-l-navy-600 bg-paper-sunken text-ink'
+                            : 'border-l-transparent text-slate-600 hover:border-l-rule-strong'
                         }`}
                       >
-                        {String.fromCharCode(65 + idx)}
-                      </span>
-                      <span>{opt}</span>
-                    </button>
+                        <span
+                          className={`font-mono text-[11px] ${
+                            isPicked ? 'text-navy-700' : 'text-slate-400'
+                          }`}
+                        >
+                          {String.fromCharCode(65 + idx)}
+                        </span>
+                        <span className="leading-relaxed">{opt}</span>
+                      </button>
+                    </li>
                   );
                 })}
-              </div>
+              </ol>
 
               <button
                 onClick={submit}
                 disabled={selected === null || submitting}
-                className="w-full sm:w-auto flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-500 disabled:opacity-40 disabled:cursor-not-allowed text-white font-bold px-6 py-3 rounded-xl shadow-lg text-xs"
+                className="mt-5 inline-flex h-11 items-center gap-2 border border-navy-600 bg-navy-600 px-5 text-sm font-medium text-paper transition-colors hover:bg-navy-700 disabled:cursor-not-allowed disabled:opacity-40"
               >
-                {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
-                {t('adaptiveSubmit')} <ArrowRight className="w-4 h-4" />
+                {submitting ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> : null}
+                {t('adaptiveSubmit')} <ArrowRight className="h-4 w-4" aria-hidden="true" />
               </button>
             </section>
           )}
 
           {trail.length > 0 && (
-            <section className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-4">
-              <div>
-                <h3 className="text-sm font-bold text-slate-800">{t('adaptiveTrail')}</h3>
-                <p className="text-[11px] text-slate-500 mt-0.5">{t('adaptiveTrailHint')}</p>
+            <section>
+              <div className="border-b border-ink pb-2.5">
+                <p className="eyebrow">{t('adaptiveTrail')}</p>
+                <p className="mt-1.5 max-w-2xl text-xs leading-relaxed text-slate-500">
+                  {t('adaptiveTrailHint')}
+                </p>
               </div>
-              <div className="space-y-1.5">
+              <ol className="m-0 mt-1 list-none p-0">
                 {trail.map((e) => (
-                  <div
+                  <li
                     key={e.question_number}
-                    className="flex items-center gap-3 p-2.5 rounded-xl bg-slate-50 border border-slate-200/80 flex-wrap"
+                    className="flex flex-wrap items-center gap-3 border-b border-rule py-3"
                   >
-                    <span className="text-[10px] font-mono font-bold text-slate-400 w-6 flex-shrink-0">
+                    <span className="w-7 shrink-0 font-mono text-[11px] text-slate-400 tnum">
                       Q{e.question_number}
                     </span>
                     {e.is_correct ? (
-                      <Check className="w-3.5 h-3.5 text-emerald-600 flex-shrink-0" />
+                      <Check className="h-3.5 w-3.5 shrink-0 text-strong-600" aria-hidden="true" />
                     ) : (
-                      <X className="w-3.5 h-3.5 text-rose-600 flex-shrink-0" />
+                      <X className="h-3.5 w-3.5 shrink-0 text-gap-600" aria-hidden="true" />
                     )}
                     <span
-                      className={`text-[10px] font-bold font-mono uppercase px-2 py-0.5 rounded border ${levelBadge(e.level_before)}`}
+                      className={`border px-2 py-0.5 font-mono text-[10px] uppercase tracking-eyebrow ${levelBadge(e.level_before)}`}
                     >
                       {e.level_before}
                     </span>
                     <MoveIcon kind={moveKind(e.level_before, e.level_after)} />
                     <span
-                      className={`text-[10px] font-bold font-mono uppercase px-2 py-0.5 rounded border ${levelBadge(e.level_after)}`}
+                      className={`border px-2 py-0.5 font-mono text-[10px] uppercase tracking-eyebrow ${levelBadge(e.level_after)}`}
                     >
                       {e.level_after}
                     </span>
-                    <span className="text-[11px] text-slate-600 italic flex-1 min-w-[12rem]">
+                    <span className="min-w-[12rem] flex-1 text-[11px] leading-relaxed text-slate-600">
                       {e.adaptation_reason}
                     </span>
-                    <span className="text-[10px] font-mono text-slate-400 flex-shrink-0">
+                    <span className="shrink-0 font-mono text-[10px] text-slate-400 tnum">
                       ×{e.weight}
                     </span>
-                  </div>
+                  </li>
                 ))}
-              </div>
+              </ol>
             </section>
           )}
 
           {result && (
-            <section className="bg-gradient-to-r from-blue-900 to-slate-900 text-white p-6 rounded-3xl shadow-md border border-blue-800 space-y-5">
-              <div className="flex flex-wrap items-end gap-6">
-                <div>
-                  <span className="text-[10px] font-mono text-blue-300 font-bold uppercase tracking-wider">
-                    {t('adaptiveWeightedScore')}
-                  </span>
-                  <p className="text-3xl font-extrabold mt-0.5">
-                    {typeof result.overall_score === 'number' ? result.overall_score.toFixed(1) : '-'}
-                    <span className="text-base font-bold text-slate-400">%</span>
-                  </p>
-                </div>
-                <div>
-                  <span className="text-[10px] font-mono text-blue-300 font-bold uppercase tracking-wider">
-                    {t('adaptiveRawScore')}
-                  </span>
-                  <p className="text-lg font-bold mt-1">
-                    {typeof result.raw_score === 'number' ? `${result.raw_score.toFixed(1)}%` : '-'}
-                  </p>
-                </div>
-                <div>
-                  <span className="text-[10px] font-mono text-blue-300 font-bold uppercase tracking-wider">
-                    {t('adaptiveFinalLevel')}
-                  </span>
-                  <p className="text-lg font-bold mt-1 uppercase font-mono">
-                    {result.final_level || '-'}
-                  </p>
-                </div>
-                <div>
-                  <span className="text-[10px] font-mono text-blue-300 font-bold uppercase tracking-wider">
-                    {t('adaptiveCorrect')}
-                  </span>
-                  <p className="text-lg font-bold mt-1">
-                    {result.correct_answers ?? 0}/{result.total_questions ?? 0}
-                  </p>
-                </div>
+            <section className="border-2 border-ink bg-white">
+              <div className="border-b border-rule px-5 py-4">
+                <p className="eyebrow">Run complete</p>
+                <h2 className="mt-2 font-display text-xl font-semibold tracking-tight text-ink">
+                  Adaptive run result
+                </h2>
               </div>
 
-              <p className="text-[11px] text-slate-300 font-mono">
-                scoring_method: {result.scoring_method || 'not reported'}
-              </p>
+              <dl className="m-0 grid grid-cols-2 gap-px bg-rule sm:grid-cols-4">
+                <div className="bg-white px-4 py-4">
+                  <dt className="eyebrow">{t('adaptiveWeightedScore')}</dt>
+                  <dd className="mt-2 font-display text-3xl font-semibold text-ink tnum">
+                    {typeof result.overall_score === 'number'
+                      ? `${result.overall_score.toFixed(1)}%`
+                      : '—'}
+                  </dd>
+                </div>
+                <div className="bg-white px-4 py-4">
+                  <dt className="eyebrow">{t('adaptiveRawScore')}</dt>
+                  <dd className="mt-2 font-display text-3xl font-semibold text-ink tnum">
+                    {typeof result.raw_score === 'number' ? `${result.raw_score.toFixed(1)}%` : '—'}
+                  </dd>
+                </div>
+                <div className="bg-white px-4 py-4">
+                  <dt className="eyebrow">{t('adaptiveFinalLevel')}</dt>
+                  <dd className="mt-2 font-mono text-sm uppercase tracking-eyebrow text-ink">
+                    {result.final_level || '—'}
+                  </dd>
+                </div>
+                <div className="bg-white px-4 py-4">
+                  <dt className="eyebrow">{t('adaptiveCorrect')}</dt>
+                  <dd className="mt-2 font-display text-3xl font-semibold text-ink tnum">
+                    {result.correct_answers ?? 0}/{result.total_questions ?? 0}
+                  </dd>
+                </div>
+              </dl>
+
+              <div className="border-t border-rule px-5 py-4">
+                <p className="font-mono text-[11px] text-slate-400">
+                  scoring_method: {result.scoring_method || 'not reported'}
+                </p>
+              </div>
 
               {(result.competency_results || []).length > 0 && (
-                <div className="space-y-2">
-                  <span className="text-[10px] font-mono text-blue-300 font-bold uppercase tracking-wider">
-                    {t('adaptivePerCompetency')}
-                  </span>
-                  {(result.competency_results || []).map((cr, idx) => (
-                    <div
-                      key={cr.competency_id || idx}
-                      className="bg-white/10 border border-white/10 rounded-xl p-3 space-y-1"
-                    >
-                      <div className="flex items-center justify-between gap-3 flex-wrap">
-                        <span className="text-xs font-bold">
-                          {cr.competency_name || cr.competency_id}
-                        </span>
-                        <span className="text-[10px] font-mono text-slate-300 flex items-center gap-2">
-                          {typeof cr.questions_answered === 'number' && (
-                            <span className="text-slate-400">
-                              {cr.questions_correct ?? 0}/{cr.questions_answered}{' '}
-                              {t('adaptiveAnswersCounted')}
+                <div className="border-t border-rule px-5 py-5">
+                  <p className="eyebrow">{t('adaptivePerCompetency')}</p>
+                  <ol className="m-0 mt-1 list-none p-0">
+                    {(result.competency_results || []).map((cr, idx) => (
+                      <li key={cr.competency_id || idx} className="border-b border-rule py-3">
+                        <div className="flex flex-wrap items-baseline justify-between gap-3">
+                          <h3 className="text-sm font-medium text-ink">
+                            {cr.competency_name || cr.competency_id}
+                          </h3>
+                          <span className="flex flex-wrap items-baseline gap-2.5 font-mono text-[10px] text-slate-500">
+                            {typeof cr.questions_answered === 'number' && (
+                              <span className="tnum">
+                                {cr.questions_correct ?? 0}/{cr.questions_answered}{' '}
+                                {t('adaptiveAnswersCounted')}
+                              </span>
+                            )}
+                            {cr.low_evidence && (
+                              <span className="border border-watch-200 bg-watch-50 px-2 py-0.5 uppercase tracking-eyebrow text-watch-700">
+                                {t('adaptiveLowEvidence')}
+                              </span>
+                            )}
+                            <span className="text-ink tnum">
+                              {typeof cr.score === 'number' ? `${cr.score.toFixed(1)}%` : '—'}
                             </span>
-                          )}
-                          {cr.low_evidence && (
-                            <span className="px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-200 border border-amber-400/30 uppercase font-bold">
-                              {t('adaptiveLowEvidence')}
+                            <span className="uppercase tracking-eyebrow">
+                              {cr.status} · {cr.priority}
                             </span>
-                          )}
-                          <span>
-                            {typeof cr.score === 'number' ? `${cr.score.toFixed(1)}%` : '-'} ·{' '}
-                            {cr.status} · {cr.priority}
                           </span>
-                        </span>
-                      </div>
-                      {cr.evidence && (
-                        <p className="text-[11px] text-slate-300">{cr.evidence}</p>
-                      )}
-                    </div>
-                  ))}
+                        </div>
+                        {cr.evidence && (
+                          <p className="mt-1.5 max-w-2xl text-xs leading-relaxed text-slate-600">
+                            {cr.evidence}
+                          </p>
+                        )}
+                      </li>
+                    ))}
+                  </ol>
                   {result.evidence_rule && (
-                    <p className="text-[10px] font-mono text-slate-400 leading-relaxed">
+                    <p className="mt-3 max-w-2xl text-[11px] leading-relaxed text-slate-400">
                       {result.evidence_rule}
                     </p>
                   )}
                 </div>
               )}
 
-              <div className="flex flex-wrap gap-3 pt-1">
+              <div className="flex flex-wrap items-center gap-3 border-t border-rule px-5 py-4">
                 <button
                   onClick={() => start(10)}
                   disabled={starting}
-                  className="flex items-center gap-2 bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white font-bold px-5 py-2.5 rounded-xl text-xs"
+                  className="inline-flex h-11 items-center gap-2 border border-navy-600 bg-navy-600 px-5 text-sm font-medium text-paper transition-colors hover:bg-navy-700 disabled:opacity-50"
                 >
-                  {starting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Play className="w-4 h-4" />}
+                  {starting ? (
+                    <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
+                  ) : (
+                    <Play className="h-4 w-4" aria-hidden="true" />
+                  )}
                   {t('adaptiveRestart')}
                 </button>
                 <Link
                   href="/dashboard/learning-path"
-                  className="flex items-center gap-2 bg-white/10 hover:bg-white/20 border border-white/20 text-white font-bold px-5 py-2.5 rounded-xl text-xs"
+                  className="inline-flex h-11 items-center gap-2 border border-rule-strong bg-white px-5 text-sm font-medium text-ink transition-colors hover:border-ink"
                 >
-                  {t('viewLearningPath')} <ArrowRight className="w-4 h-4" />
+                  {t('viewLearningPath')} <ArrowRight className="h-4 w-4" aria-hidden="true" />
                 </Link>
               </div>
 
               {sessionId && (
-                <p className="text-[10px] text-slate-400 font-mono break-all">
+                <p className="break-all border-t border-rule px-5 py-3 font-mono text-[10px] text-slate-400">
                   {t('adaptiveAuditHint')} GET /api/quizzes/adaptive/{sessionId}
                 </p>
               )}
             </section>
           )}
+          </div>
         </main>
       </div>
     </div>

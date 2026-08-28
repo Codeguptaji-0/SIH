@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { Navbar } from '@/components/Navbar';
 import { Sidebar } from '@/components/Sidebar';
 import { WowTransitionModal } from '@/components/WowTransitionModal';
-import { ArrowRight, ArrowLeft, CheckCircle2, XCircle, AlertTriangle, Inbox, Loader2, Target, BookOpen } from 'lucide-react';
+import { ArrowRight, ArrowLeft, CheckCircle2, XCircle, AlertTriangle, Loader2 } from 'lucide-react';
 import { apiJson, ApiError } from '@/app/lib/api';
 
 /**
@@ -224,59 +224,70 @@ export default function AdaptiveQuizPage() {
   const answeredCount = Object.keys(userAnswers).length;
 
   return (
-    <div className="min-h-screen bg-slate-50 flex flex-col">
-      <Navbar currentRole="OFFICIAL" />
+    <div className="flex min-h-screen flex-col bg-paper">
+      <Navbar />
 
       <div className="flex flex-1">
         <Sidebar role="OFFICIAL" />
 
-        <main className="flex-1 p-6 sm:p-8 max-w-4xl mx-auto space-y-6 w-full">
+        <main className="mx-auto w-full max-w-4xl flex-1 px-5 py-8 md:px-8">
+          <header className="border-b-2 border-ink pb-6">
+            <p className="eyebrow">Assessment session</p>
+            <h1 className="mt-2 font-display text-2xl font-semibold tracking-tightest text-ink">
+              Competency assessment
+            </h1>
+            <p className="mt-1.5 max-w-xl text-xs leading-relaxed text-slate-500">
+              Every question here has been approved by a trainer. Your score, the bands and the
+              per-question review are all computed on the server.
+            </p>
+          </header>
+
+          <div className="mt-8 space-y-8">
+
           {loading && (
             <div
               role="status"
               aria-live="polite"
-              className="bg-white p-8 rounded-3xl border border-slate-200 shadow-sm flex items-center justify-center gap-3 text-sm text-slate-500"
+              className="flex items-center justify-center gap-3 border border-rule bg-white px-5 py-10 text-xs text-slate-500"
             >
-              <Loader2 className="w-4 h-4 animate-spin text-blue-600" aria-hidden="true" />
-              Loading your assessment session...
+              <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
+              Loading your assessment session…
             </div>
           )}
 
           {!loading && loadError && (
-            <div
-              role="alert"
-              className="bg-white p-8 rounded-3xl border border-rose-200 shadow-sm text-center space-y-3"
-            >
-              <AlertTriangle className="w-10 h-10 text-rose-600 mx-auto" aria-hidden="true" />
-              <h2 className="text-sm font-bold text-slate-900">Could not load the assessment</h2>
-              <p className="text-xs text-rose-700 font-mono break-words">{loadError}</p>
-              <button
-                type="button"
-                onClick={loadQuiz}
-                className="mt-2 px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold shadow transition-colors"
-              >
-                Try again
-              </button>
+            <div role="alert" className="flex items-start gap-3 border-l-2 border-gap-600 bg-gap-50 px-4 py-3.5">
+              <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-gap-600" aria-hidden="true" />
+              <div className="min-w-0">
+                <h2 className="text-sm font-medium text-ink">Could not load the assessment</h2>
+                <p className="mt-1 break-words font-mono text-[11px] text-gap-700">{loadError}</p>
+                <button
+                  type="button"
+                  onClick={loadQuiz}
+                  className="mt-3 inline-flex h-9 items-center border border-rule-strong bg-white px-3 text-xs font-medium text-ink transition-colors hover:border-ink"
+                >
+                  Try again
+                </button>
+              </div>
             </div>
           )}
 
           {!loading && !loadError && questions.length === 0 && (
-            <div className="bg-white p-8 rounded-3xl border border-slate-200 shadow-sm text-center space-y-3">
-              <Inbox className="w-10 h-10 text-slate-400 mx-auto" aria-hidden="true" />
-              <h2 className="text-sm font-bold text-slate-900">No assessment is available yet</h2>
-              <p className="text-xs text-slate-500 max-w-xl mx-auto leading-relaxed">
+            <div className="border border-rule bg-white px-5 py-6">
+              <h2 className="text-sm font-medium text-ink">No assessment is available yet</h2>
+              <p className="mt-1 max-w-xl text-xs leading-relaxed text-slate-500">
                 {emptyMessage ??
                   'The question bank has no trainer-approved questions, so there is nothing to assess yet.'}
               </p>
               {approvedPoolSize !== null && (
-                <p className="text-[11px] text-slate-400 font-mono">
+                <p className="mt-2 font-mono text-[11px] text-slate-400 tnum">
                   Trainer-approved questions available: {approvedPoolSize}
                 </p>
               )}
               <button
                 type="button"
                 onClick={loadQuiz}
-                className="mt-2 px-5 py-2.5 rounded-xl border border-slate-300 text-xs font-bold text-slate-600 hover:bg-slate-100 transition-colors"
+                className="mt-4 inline-flex h-9 items-center border border-rule-strong bg-white px-3 text-xs font-medium text-ink transition-colors hover:border-ink"
               >
                 Check again
               </button>
@@ -307,6 +318,7 @@ export default function AdaptiveQuizPage() {
               onContinue={() => router.push('/dashboard/results')}
             />
           )}
+          </div>
         </main>
       </div>
 
@@ -353,48 +365,58 @@ function QuizRunner({
 
   const difficultyClass =
     currentQ.difficulty === 'hard'
-      ? 'bg-rose-100 text-rose-700 border border-rose-200'
+      ? 'border-gap-200 bg-gap-50 text-gap-700'
       : currentQ.difficulty === 'medium'
-      ? 'bg-amber-100 text-amber-800 border border-amber-200'
-      : 'bg-emerald-100 text-emerald-800 border border-emerald-200';
+      ? 'border-watch-200 bg-watch-50 text-watch-700'
+      : 'border-strong-200 bg-strong-50 text-strong-700';
 
   return (
     <>
-      {/* Progress Indicator Header */}
-      <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-between">
-        <div>
-          <div className="text-xs font-mono text-blue-600 font-bold">
-            QUESTION {currentIndex + 1} OF {questions.length}
+      {/* Where you are in the run, plus the competency this question measures. */}
+      <div className="border border-rule bg-white px-5 py-4">
+        <div className="flex flex-wrap items-baseline justify-between gap-3">
+          <div className="min-w-0">
+            <p className="eyebrow">
+              Question {currentIndex + 1} of {questions.length}
+            </p>
+            <p className="mt-1.5 text-sm text-ink">
+              Competency: <span className="font-medium">{currentQ.competency_name}</span>
+            </p>
           </div>
-          <div className="text-sm font-bold text-slate-800 mt-0.5">
-            Competency: <span className="text-blue-700">{currentQ.competency_name}</span>
-          </div>
-        </div>
-
-        <div className="flex items-center space-x-3">
           {currentQ.difficulty && (
             <span
-              className={`text-[11px] font-bold px-3 py-1 rounded-full font-mono uppercase ${difficultyClass}`}
+              className={`shrink-0 border px-2.5 py-1 font-mono text-[10px] uppercase tracking-eyebrow ${difficultyClass}`}
             >
-              Difficulty: {currentQ.difficulty}
+              {currentQ.difficulty}
             </span>
           )}
         </div>
-      </div>
 
-      {/*
-        Say how these questions were chosen. Ten questions spread thinly over ten
-        competencies can only ever score each of them 0% or 100%, so the backend
-        concentrates them and reports that choice in selection_method. Showing it
-        here means the officer can see what the coming gap report is based on.
-      */}
-      {selectionMethod && (
-        <div className="bg-blue-50 border border-blue-100 rounded-2xl px-5 py-3 flex items-start gap-2">
-          <Target className="w-4 h-4 text-blue-600 flex-shrink-0 mt-0.5" aria-hidden="true" />
-          <p className="text-[11px] text-slate-600 leading-relaxed">
+        <div
+          className="mt-3.5 h-[6px] w-full bg-paper-sunken"
+          role="progressbar"
+          aria-valuemin={0}
+          aria-valuemax={questions.length}
+          aria-valuenow={currentIndex + 1}
+          aria-label="Assessment progress"
+        >
+          <div
+            className="h-full bg-navy-600"
+            style={{ width: `${((currentIndex + 1) / questions.length) * 100}%` }}
+          />
+        </div>
+
+        {/*
+          Say how these questions were chosen. Ten questions spread thinly over ten
+          competencies can only ever score each of them 0% or 100%, so the backend
+          concentrates them and reports that choice in selection_method. Showing it
+          here means the officer can see what the coming gap report is based on.
+        */}
+        {selectionMethod && (
+          <p className="mt-3.5 border-t border-rule pt-3 text-[11px] leading-relaxed text-slate-500">
             {selectionMethod}
             {competenciesCovered !== null && (
-              <span className="font-mono text-slate-500">
+              <span className="font-mono text-slate-400">
                 {' '}
                 ({questions.length} questions across {competenciesCovered}{' '}
                 {competenciesCovered === 1 ? 'competency' : 'competencies'}
@@ -402,95 +424,79 @@ function QuizRunner({
               </span>
             )}
           </p>
-        </div>
-      )}
-
-      {/* Progress Bar */}
-      <div
-        className="w-full bg-slate-200 h-2 rounded-full overflow-hidden"
-        role="progressbar"
-        aria-valuemin={0}
-        aria-valuemax={questions.length}
-        aria-valuenow={currentIndex + 1}
-        aria-label="Assessment progress"
-      >
-        <div
-          className="bg-blue-600 h-full transition-all duration-300"
-          style={{ width: `${((currentIndex + 1) / questions.length) * 100}%` }}
-        ></div>
+        )}
       </div>
 
-      {/* Question Card */}
-      <div className="bg-white p-6 sm:p-8 rounded-3xl border border-slate-200 shadow-sm space-y-6">
-        <h2 className="text-base sm:text-lg font-bold text-slate-900 leading-snug">
+      {/* The question itself. */}
+      <div className="border border-ink bg-white px-5 py-5">
+        <h2 className="font-display text-lg font-semibold leading-snug tracking-tight text-ink">
           {currentQ.question_text}
         </h2>
 
-        <div className="space-y-3">
+        <ol className="m-0 mt-4 list-none border-t border-rule p-0">
           {options.map((opt, idx) => {
             const isSelected = selectedOpt === idx;
             return (
-              <button
-                type="button"
-                key={idx}
-                onClick={() => onSelectOption(idx)}
-                aria-pressed={isSelected}
-                className={`w-full text-left p-4 rounded-2xl border text-xs font-medium transition-all flex items-center justify-between ${
-                  isSelected
-                    ? 'bg-blue-50 border-blue-600 text-blue-900 shadow-sm font-semibold'
-                    : 'bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100 hover:border-slate-300'
-                }`}
-              >
-                <div className="flex items-center space-x-3">
-                  <div
-                    className={`w-7 h-7 rounded-xl flex items-center justify-center font-mono font-bold text-xs ${
-                      isSelected ? 'bg-blue-600 text-white' : 'bg-slate-200 text-slate-600'
-                    }`}
-                    aria-hidden="true"
-                  >
-                    {String.fromCharCode(65 + idx)}
-                  </div>
-                  <span>{opt}</span>
-                </div>
-                {isSelected && (
-                  <CheckCircle2 className="w-4 h-4 text-blue-600 flex-shrink-0" aria-hidden="true" />
-                )}
-              </button>
+              <li key={idx} className="border-b border-rule">
+                <button
+                  type="button"
+                  onClick={() => onSelectOption(idx)}
+                  aria-pressed={isSelected}
+                  className={`flex w-full items-baseline justify-between gap-3 border-l-2 px-3 py-3.5 text-left text-xs transition-colors ${
+                    isSelected
+                      ? 'border-l-navy-600 bg-paper-sunken text-ink'
+                      : 'border-l-transparent text-slate-600 hover:border-l-rule-strong'
+                  }`}
+                >
+                  <span className="flex items-baseline gap-3">
+                    <span
+                      className={`font-mono text-[11px] ${
+                        isSelected ? 'text-navy-700' : 'text-slate-400'
+                      }`}
+                      aria-hidden="true"
+                    >
+                      {String.fromCharCode(65 + idx)}
+                    </span>
+                    <span className="leading-relaxed">{opt}</span>
+                  </span>
+                  {isSelected && (
+                    <CheckCircle2 className="h-3.5 w-3.5 shrink-0 text-navy-600" aria-hidden="true" />
+                  )}
+                </button>
+              </li>
             );
           })}
-        </div>
+        </ol>
 
         {currentQ.source_reference && (
-          <div className="text-[11px] text-slate-400 font-mono border-t border-slate-100 pt-3">
-            Source Reference: {currentQ.source_reference}
-          </div>
+          <p className="mt-3.5 font-mono text-[11px] text-slate-400">
+            Source reference: {currentQ.source_reference}
+          </p>
         )}
       </div>
 
       {submitError && (
-        <div
-          role="alert"
-          className="bg-rose-50 border border-rose-200 text-rose-800 p-4 rounded-2xl text-xs space-y-1"
-        >
-          <div className="font-bold flex items-center gap-2">
-            <AlertTriangle className="w-4 h-4" aria-hidden="true" /> Submission rejected
+        <div role="alert" className="flex items-start gap-3 border-l-2 border-gap-600 bg-gap-50 px-4 py-3.5">
+          <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-gap-600" aria-hidden="true" />
+          <div className="min-w-0">
+            <h3 className="text-sm font-medium text-ink">Submission rejected</h3>
+            <p className="mt-1 break-words font-mono text-[11px] text-gap-700">{submitError}</p>
+            <p className="mt-1.5 text-xs text-gap-700">
+              Nothing was recorded. Your answers are still selected, so you can retry.
+            </p>
           </div>
-          <p className="font-mono break-words">{submitError}</p>
-          <p className="text-[11px] text-rose-700">
-            Nothing was recorded. Your answers are still selected, so you can retry.
-          </p>
         </div>
       )}
 
-      {/* Navigation Controls */}
-      <div className="flex items-center justify-between">
+      {/* Navigation. */}
+      <div className="flex items-center justify-between gap-3 border-t border-rule pt-4">
         <button
           type="button"
           onClick={onPrev}
           disabled={currentIndex === 0}
-          className="px-5 py-2.5 rounded-xl border border-slate-300 text-xs font-bold text-slate-600 hover:bg-slate-100 disabled:opacity-40 transition-colors flex items-center gap-2"
+          className="inline-flex h-9 items-center gap-1.5 border border-rule-strong bg-white px-3 text-xs font-medium text-ink transition-colors hover:border-ink disabled:opacity-40"
         >
-          <ArrowLeft className="w-4 h-4" aria-hidden="true" /> Previous
+          <ArrowLeft className="h-3.5 w-3.5" aria-hidden="true" /> Previous
         </button>
 
         {isLast ? (
@@ -498,18 +504,25 @@ function QuizRunner({
             type="button"
             onClick={onSubmit}
             disabled={isSubmitting || answeredCount === 0}
-            className="px-7 py-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-extrabold shadow-lg shadow-emerald-600/30 transition-all flex items-center gap-2 disabled:opacity-50"
+            className="inline-flex h-11 items-center gap-2 border border-navy-600 bg-navy-600 px-5 text-sm font-medium text-paper transition-colors hover:bg-navy-700 disabled:opacity-50"
           >
-            {isSubmitting ? 'Submitting...' : 'Analyze My Competency'}
-            <ArrowRight className="w-4 h-4" aria-hidden="true" />
+            {isSubmitting ? (
+              <>
+                <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> Submitting
+              </>
+            ) : (
+              <>
+                Submit for scoring <ArrowRight className="h-4 w-4" aria-hidden="true" />
+              </>
+            )}
           </button>
         ) : (
           <button
             type="button"
             onClick={onNext}
-            className="px-6 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold shadow-md transition-all flex items-center gap-2"
+            className="inline-flex h-11 items-center gap-2 border border-navy-600 bg-navy-600 px-5 text-sm font-medium text-paper transition-colors hover:bg-navy-700"
           >
-            Next Question <ArrowRight className="w-4 h-4" aria-hidden="true" />
+            Next question <ArrowRight className="h-4 w-4" aria-hidden="true" />
           </button>
         )}
       </div>
@@ -518,9 +531,9 @@ function QuizRunner({
 }
 
 const STATUS_STYLES: Record<string, string> = {
-  strong: 'bg-emerald-100 text-emerald-800 border-emerald-200',
-  needs_improvement: 'bg-amber-100 text-amber-800 border-amber-200',
-  critical_gap: 'bg-rose-100 text-rose-800 border-rose-200'
+  strong: 'border-strong-200 bg-strong-50 text-strong-700',
+  needs_improvement: 'border-watch-200 bg-watch-50 text-watch-700',
+  critical_gap: 'border-gap-200 bg-gap-50 text-gap-700'
 };
 
 /**
@@ -544,47 +557,45 @@ function SubmissionReview({
   );
 
   return (
-    <div className="space-y-6">
-      <div className="bg-white p-6 sm:p-8 rounded-3xl border border-slate-200 shadow-sm space-y-4">
-        <div className="flex items-start justify-between gap-4 flex-wrap">
-          <div>
-            <div className="text-xs font-mono text-blue-600 font-bold">ASSESSMENT SCORED</div>
-            <h2 className="text-lg font-bold text-slate-900 mt-0.5">
-              {data.overall_score}% competency score
+    <div className="space-y-8">
+      <section className="border-2 border-ink bg-white">
+        <div className="flex flex-wrap items-start justify-between gap-4 px-5 py-5">
+          <div className="min-w-0">
+            <p className="eyebrow">Assessment scored</p>
+            <h2 className="mt-2 font-display text-3xl font-semibold text-ink tnum">
+              {data.overall_score}%
             </h2>
-            <p className="text-xs text-slate-500 mt-1">
+            <p className="mt-1.5 max-w-xl text-xs leading-relaxed text-slate-500">
               {data.correct_answers} of {data.total_questions} answered correctly (raw{' '}
               {data.raw_score}%). Weighted by difficulty: {data.scoring_method}.
             </p>
           </div>
-          <div className="text-[11px] font-mono text-slate-400 text-right">
+          <p className="shrink-0 font-mono text-[11px] text-slate-400">
             attempt {data.attempt_id.slice(0, 8)}
-          </div>
-        </div>
-
-        <div className="border-t border-slate-100 pt-4 flex items-start gap-2 text-xs text-slate-600">
-          <Target className="w-4 h-4 text-blue-600 flex-shrink-0 mt-0.5" aria-hidden="true" />
-          <p className="leading-relaxed">
-            {data.job_role && data.role_targets_applied > 0 ? (
-              <>
-                Banded against the proficiency targets for{' '}
-                <span className="font-bold text-slate-800">{data.job_role}</span> on{' '}
-                {data.role_targets_applied} of {results.length} competencies. A shortfall here means
-                a shortfall against what this role requires, not against a single pass mark.
-              </>
-            ) : (
-              <>
-                No proficiency targets are defined for this job role yet, so standard thresholds were
-                applied: {data.banding_method}.
-              </>
-            )}
           </p>
         </div>
-      </div>
+
+        <p className="border-t border-rule px-5 py-4 text-xs leading-relaxed text-slate-600">
+          {data.job_role && data.role_targets_applied > 0 ? (
+            <>
+              Banded against the proficiency targets for{' '}
+              <span className="font-medium text-ink">{data.job_role}</span> on{' '}
+              {data.role_targets_applied} of {results.length} competencies. A shortfall here means a
+              shortfall against what this role requires, not against a single pass mark.
+            </>
+          ) : (
+            <>
+              No proficiency targets are defined for this job role yet, so standard thresholds were
+              applied: {data.banding_method}.
+            </>
+          )}
+        </p>
+      </section>
+
       {ordered.length > 0 && (
-        <div className="bg-white rounded-3xl border border-slate-200 shadow-sm divide-y divide-slate-100">
-          <div className="p-5 flex items-center justify-between gap-3 flex-wrap">
-            <span className="text-sm font-bold text-slate-800">Competency breakdown</span>
+        <section>
+          <div className="flex flex-wrap items-baseline justify-between gap-3 border-b border-ink pb-2.5">
+            <p className="eyebrow">Competency breakdown</p>
             {/*
               How thin the thinnest rows are, in the backend's own words. A single
               answer forces 0% or 100%, which is how a one-question competency ended
@@ -593,108 +604,126 @@ function SubmissionReview({
             */}
             {typeof data.low_evidence_competencies === 'number' &&
               data.low_evidence_competencies > 0 && (
-                <span className="text-[10px] font-mono uppercase px-2.5 py-1 rounded-full bg-amber-50 text-amber-800 border border-amber-200">
+                <span className="border border-watch-200 bg-watch-50 px-2 py-0.5 font-mono text-[10px] uppercase tracking-eyebrow text-watch-700">
                   {data.low_evidence_competencies} of {ordered.length} thinly measured
                 </span>
               )}
           </div>
-          {ordered.map((r) => (
-            <div key={r.competency_id} className="p-5 space-y-2">
-              <div className="flex items-center justify-between gap-3 flex-wrap">
-                <div className="text-xs font-bold text-slate-800">{r.competency_name}</div>
-                <div className="flex items-center gap-2">
-                  {typeof r.questions_answered === 'number' && (
-                    <span className="text-[10px] font-mono text-slate-400">
-                      {r.questions_correct ?? 0}/{r.questions_answered}{' '}
-                      {r.questions_answered === 1 ? 'answer' : 'answers'}
+          <ol className="m-0 mt-1 list-none p-0">
+            {ordered.map((r) => (
+              <li key={r.competency_id} className="border-b border-rule py-3.5">
+                <div className="flex flex-wrap items-baseline justify-between gap-3">
+                  <h3 className="text-sm font-medium text-ink">{r.competency_name}</h3>
+                  <div className="flex flex-wrap items-baseline gap-2.5">
+                    {typeof r.questions_answered === 'number' && (
+                      <span className="font-mono text-[10px] text-slate-400 tnum">
+                        {r.questions_correct ?? 0}/{r.questions_answered}{' '}
+                        {r.questions_answered === 1 ? 'answer' : 'answers'}
+                      </span>
+                    )}
+                    {r.low_evidence && (
+                      <span className="border border-watch-200 bg-watch-50 px-2 py-0.5 font-mono text-[10px] uppercase tracking-eyebrow text-watch-700">
+                        low evidence
+                      </span>
+                    )}
+                    <span className="font-mono text-[11px] text-ink tnum">
+                      {r.score}%
+                      {r.target_score !== null && (
+                        <span className="text-slate-400"> / target {r.target_score}%</span>
+                      )}
                     </span>
-                  )}
-                  {r.low_evidence && (
-                    <span className="text-[10px] font-bold font-mono uppercase px-2 py-1 rounded-full bg-amber-50 text-amber-800 border border-amber-200">
-                      low evidence
+                    <span
+                      className={`border px-2 py-0.5 font-mono text-[10px] uppercase tracking-eyebrow ${
+                        STATUS_STYLES[r.status] ?? 'border-rule bg-paper-sunken text-slate-500'
+                      }`}
+                    >
+                      {r.status.replace(/_/g, ' ')}
                     </span>
-                  )}
-                  <span className="text-[11px] font-mono text-slate-500">
-                    {r.score}%
-                    {r.target_score !== null && <> / target {r.target_score}%</>}
-                  </span>
-                  <span
-                    className={`text-[10px] font-bold px-2.5 py-1 rounded-full border uppercase font-mono ${
-                      STATUS_STYLES[r.status] ?? 'bg-slate-100 text-slate-700 border-slate-200'
-                    }`}
-                  >
-                    {r.status.replace(/_/g, ' ')}
-                  </span>
+                  </div>
                 </div>
-              </div>
-              <p className="text-[11px] text-slate-600 leading-relaxed">{r.evidence}</p>
-              <div className="text-[10px] font-mono text-slate-400 uppercase">
-                {r.benchmark === 'role_target' ? 'benchmark: role target' : 'benchmark: standard threshold'}
-              </div>
-            </div>
-          ))}
+                <p className="mt-1.5 max-w-2xl text-xs leading-relaxed text-slate-600">
+                  {r.evidence}
+                </p>
+                <p className="mt-1 font-mono text-[10px] uppercase tracking-eyebrow text-slate-400">
+                  {r.benchmark === 'role_target'
+                    ? 'benchmark: role target'
+                    : 'benchmark: standard threshold'}
+                </p>
+              </li>
+            ))}
+          </ol>
           {data.evidence_rule && (
-            <div className="p-5 text-[10px] font-mono text-slate-400 leading-relaxed">
+            <p className="mt-3 max-w-2xl text-[11px] leading-relaxed text-slate-400">
               {data.evidence_rule}
-            </div>
+            </p>
           )}
-        </div>
+        </section>
       )}
       {answers.length > 0 && (
-        <div className="bg-white rounded-3xl border border-slate-200 shadow-sm divide-y divide-slate-100">
-          <div className="p-5 flex items-center gap-2">
-            <BookOpen className="w-4 h-4 text-blue-600" aria-hidden="true" />
-            <span className="text-sm font-bold text-slate-800">
-              Question review ({answers.filter((a) => !a.is_correct).length} to revisit)
-            </span>
+        <section>
+          <div className="border-b border-ink pb-2.5">
+            <p className="eyebrow">Question review</p>
+            <p className="mt-1.5 text-xs leading-relaxed text-slate-500">
+              {answers.filter((a) => !a.is_correct).length} of {answers.length} to revisit. The
+              correct option and the stored explanation come from the question record.
+            </p>
           </div>
-          {answers.map((a, i) => (
-            <div key={a.question_id} className="p-5 space-y-3">
-              <div className="flex items-start gap-3">
-                {a.is_correct ? (
-                  <CheckCircle2 className="w-4 h-4 text-emerald-600 flex-shrink-0 mt-0.5" aria-hidden="true" />
-                ) : (
-                  <XCircle className="w-4 h-4 text-rose-600 flex-shrink-0 mt-0.5" aria-hidden="true" />
-                )}
-                <div className="space-y-1 min-w-0">
-                  <div className="text-[10px] font-mono uppercase text-slate-400">
+          <ol className="m-0 mt-1 list-none p-0">
+            {answers.map((a, i) => (
+              <li
+                key={a.question_id}
+                className={`border-b border-rule border-l-2 py-3.5 pl-4 ${
+                  a.is_correct ? 'border-l-strong-600' : 'border-l-gap-600'
+                }`}
+              >
+                <div className="flex items-baseline gap-2.5">
+                  {a.is_correct ? (
+                    <CheckCircle2 className="h-3.5 w-3.5 shrink-0 text-strong-600" aria-hidden="true" />
+                  ) : (
+                    <XCircle className="h-3.5 w-3.5 shrink-0 text-gap-600" aria-hidden="true" />
+                  )}
+                  <p className="eyebrow">
                     Q{i + 1} &middot; {a.competency_name} &middot; {a.difficulty}
-                  </div>
-                  <p className="text-xs font-bold text-slate-900 leading-snug">{a.question_text}</p>
+                  </p>
                 </div>
-              </div>
+                <h3 className="mt-1.5 text-sm font-medium leading-snug text-ink">
+                  {a.question_text}
+                </h3>
 
-              <div className="pl-7 space-y-1 text-[11px]">
-                <div className={a.is_correct ? 'text-emerald-700' : 'text-rose-700'}>
-                  Your answer: <span className="font-semibold">{a.selected_text ?? 'not answered'}</span>
-                </div>
-                {!a.is_correct && a.correct_text && (
-                  <div className="text-emerald-700">
-                    Correct answer: <span className="font-semibold">{a.correct_text}</span>
+                <dl className="m-0 mt-2 text-[11px]">
+                  <div className="flex flex-wrap gap-x-2">
+                    <dt className="text-slate-500">Your answer:</dt>
+                    <dd className={`m-0 ${a.is_correct ? 'text-strong-700' : 'text-gap-700'}`}>
+                      {a.selected_text ?? 'not answered'}
+                    </dd>
                   </div>
-                )}
-              </div>
+                  {!a.is_correct && a.correct_text && (
+                    <div className="mt-0.5 flex flex-wrap gap-x-2">
+                      <dt className="text-slate-500">Correct answer:</dt>
+                      <dd className="m-0 text-strong-700">{a.correct_text}</dd>
+                    </div>
+                  )}
+                </dl>
 
-              {a.explanation && (
-                <div className="pl-7">
-                  <div className="bg-slate-50 border border-slate-200 rounded-2xl p-3 text-[11px] text-slate-700 leading-relaxed">
-                    <span className="font-bold text-slate-800">Why: </span>
+                {a.explanation && (
+                  <p className="mt-2 max-w-2xl border-l-2 border-rule-strong bg-paper-sunken px-3 py-2 text-[11px] leading-relaxed text-slate-600">
+                    <span className="font-medium text-ink">Why: </span>
                     {a.explanation}
-                  </div>
-                </div>
-              )}
-            </div>
-          ))}
-        </div>
+                  </p>
+                )}
+              </li>
+            ))}
+          </ol>
+        </section>
       )}
 
-      <div className="flex justify-end">
+      <div className="flex justify-end border-t border-rule pt-4">
         <button
           type="button"
           onClick={onContinue}
-          className="px-7 py-3 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-extrabold shadow-lg shadow-blue-600/30 transition-all flex items-center gap-2"
+          className="inline-flex h-11 items-center gap-2 border border-navy-600 bg-navy-600 px-5 text-sm font-medium text-paper transition-colors hover:bg-navy-700"
         >
-          View full competency analysis <ArrowRight className="w-4 h-4" aria-hidden="true" />
+          View full competency analysis <ArrowRight className="h-4 w-4" aria-hidden="true" />
         </button>
       </div>
     </div>

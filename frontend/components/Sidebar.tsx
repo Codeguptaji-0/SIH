@@ -1,78 +1,76 @@
-"use client";
+'use client';
+
+/*
+ * Section navigation.
+ *
+ * Set as a table of contents rather than an app rail: mono section numbers, no
+ * icons, a navy rule marking the current section. Icons were dropped on purpose -
+ * twelve lucide glyphs down the left edge is the single strongest "generated
+ * dashboard" tell in the old design, and a release numbers its contents instead.
+ *
+ * The heading no longer prints "{role} MENU". With no session that read
+ * "OFFICIAL MENU", which claimed a role the visitor did not have.
+ */
 
 import React from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { 
-  LayoutDashboard, 
-  UserCheck, 
-  BookOpen, 
-  Award, 
-  TrendingUp, 
-  FileText, 
-  CheckSquare, 
-  BarChart3, 
-  FileCheck,
-  HelpCircle,
-  Gauge,
-  Code2
-} from 'lucide-react';
 import { useLanguage } from '../app/context/LanguageContext';
 
 interface SidebarProps {
   role?: string;
 }
 
-export const Sidebar: React.FC<SidebarProps> = ({ role = 'OFFICIAL' }) => {
+export const Sidebar: React.FC<SidebarProps> = ({ role }) => {
   const pathname = usePathname();
   const { t } = useLanguage();
 
   const officialNav = [
-    { label: t('navDashboard'), href: '/dashboard', icon: LayoutDashboard },
-    { label: t('navProfile'), href: '/dashboard/profile', icon: UserCheck },
-    { label: t('navAssessment'), href: '/dashboard/assessment', icon: Award },
-    { label: t('navAdaptive'), href: '/dashboard/adaptive', icon: Gauge },
-    { label: t('navLearningPath'), href: '/dashboard/learning-path', icon: BookOpen },
-    { label: t('navProgress'), href: '/dashboard/progress', icon: TrendingUp },
-    { label: t('navVirtualLab'), href: '/dashboard/virtual-lab', icon: Code2 },
+    { label: t('navDashboard'), href: '/dashboard' },
+    { label: t('navProfile'), href: '/dashboard/profile' },
+    { label: t('navAssessment'), href: '/dashboard/assessment' },
+    { label: t('navAdaptive'), href: '/dashboard/adaptive' },
+    { label: t('navLearningPath'), href: '/dashboard/learning-path' },
+    { label: t('navProgress'), href: '/dashboard/progress' },
+    { label: t('navVirtualLab'), href: '/dashboard/virtual-lab' },
   ];
 
   const trainerNav = [
-    { label: t('navMaterials'), href: '/trainer/materials', icon: FileText },
-    { label: t('navQuestionBank'), href: '/trainer/questions', icon: BookOpen },
-    { label: t('navReview'), href: '/trainer/review', icon: FileCheck },
+    { label: t('navMaterials'), href: '/trainer/materials' },
+    { label: t('navQuestionBank'), href: '/trainer/questions' },
+    { label: t('navReview'), href: '/trainer/review' },
   ];
 
   const adminNav = [
-    { label: t('navAnalytics'), href: '/admin/analytics', icon: BarChart3 },
-    { label: t('domainReadiness'), href: '/admin/analytics#readiness', icon: Award },
-    { label: t('navProgress'), href: '/admin/analytics#demand', icon: TrendingUp },
+    { label: t('navAnalytics'), href: '/admin/analytics' },
+    { label: t('domainReadiness'), href: '/admin/analytics#readiness' },
+    { label: t('navProgress'), href: '/admin/analytics#demand' },
   ];
 
-  const navItems = role === 'ADMIN' ? adminNav : (role === 'TRAINER' ? trainerNav : officialNav);
+  const navItems = role === 'ADMIN' ? adminNav : role === 'TRAINER' ? trainerNav : officialNav;
 
   return (
-    <aside className="w-64 bg-white border-r border-slate-200 min-h-[calc(100vh-4rem)] p-4 flex flex-col justify-between shadow-sm">
-      <div className="space-y-6">
+    <aside className="flex w-60 min-h-[calc(100vh-3.5rem)] flex-col justify-between border-r border-rule bg-paper px-4 py-5">
+      <div className="space-y-8">
         <div>
-          <div className="text-[11px] font-bold text-slate-400 uppercase tracking-wider px-3 mb-2 font-mono">
-            {role} MENU
-          </div>
-          <nav className="space-y-1">
-            {navItems.map((item) => {
-              const Icon = item.icon;
+          <p className="eyebrow px-2">Contents</p>
+          <nav className="mt-3 border-t border-rule">
+            {navItems.map((item, i) => {
               const isActive = pathname === item.href;
               return (
                 <Link
                   key={item.href}
                   href={item.href}
-                  className={`flex items-center space-x-3 px-3 py-2.5 rounded-lg text-xs font-medium transition-all ${
+                  aria-current={isActive ? 'page' : undefined}
+                  className={`flex items-baseline gap-3 border-b border-rule border-l-2 py-2.5 pl-2 pr-1 text-[0.8125rem] transition-colors ${
                     isActive
-                      ? 'bg-blue-50 text-blue-700 font-semibold shadow-sm border border-blue-200'
-                      : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
+                      ? 'border-l-navy-600 bg-white font-medium text-ink'
+                      : 'border-l-transparent text-slate-500 hover:bg-white hover:text-ink'
                   }`}
                 >
-                  <Icon className={`w-4 h-4 ${isActive ? 'text-blue-600' : 'text-slate-400'}`} />
+                  <span className="font-mono text-[10px] text-slate-400 tnum">
+                    {String(i + 1).padStart(2, '0')}
+                  </span>
                   <span>{item.label}</span>
                 </Link>
               );
@@ -80,24 +78,20 @@ export const Sidebar: React.FC<SidebarProps> = ({ role = 'OFFICIAL' }) => {
           </nav>
         </div>
 
-        {/* Info Card */}
-        <div className="bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs">
-          <div className="font-semibold text-slate-800 mb-1 flex items-center gap-1.5">
-            <span className="w-2 h-2 rounded-full bg-blue-600"></span>
-            MoSPI Competency Framework
-          </div>
-          <p className="text-[11px] text-slate-500 leading-relaxed">
-            Evaluates 4 official domains: Statistical, Technical, Digital Governance, & Managerial.
+        {/* Standing note on what the scores are measured against. */}
+        <div className="border-l-2 border-rule-strong pl-3">
+          <p className="text-xs font-medium text-ink">MoSPI competency framework</p>
+          <p className="mt-1 text-[11px] leading-relaxed text-slate-500">
+            Four official domains: statistical, technical, digital governance, and managerial.
           </p>
         </div>
       </div>
 
-      {/* Footer Disclaimer */}
-      <div className="pt-4 border-t border-slate-100 text-[10px] text-slate-400 leading-tight text-center">
-        Smart India Hackathon 2026<br />
-        Problem Statement SIH26101
-      </div>
+      <p className="mt-8 border-t border-rule pt-4 text-[10px] leading-relaxed text-slate-400">
+        Smart India Hackathon 2026
+        <br />
+        Problem statement SIH26101
+      </p>
     </aside>
   );
 };
-

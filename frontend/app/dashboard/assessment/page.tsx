@@ -7,8 +7,6 @@ import { Sidebar } from '@/components/Sidebar';
 import {
   AlertTriangle,
   ArrowRight,
-  FileText,
-  Gauge,
   Loader2,
   RefreshCw,
 } from 'lucide-react';
@@ -96,78 +94,104 @@ export default function AssessmentCenterPage() {
   const materialList: Material[] = materials || [];
 
   return (
-    <div className="min-h-screen bg-slate-50 flex flex-col">
-      <Navbar currentRole="OFFICIAL" />
+    <div className="flex min-h-screen flex-col bg-paper">
+      <Navbar />
 
       <div className="flex flex-1">
         <Sidebar role="OFFICIAL" />
 
-        <main className="flex-1 p-6 sm:p-8 max-w-7xl mx-auto space-y-6">
-          <div className="flex items-start justify-between gap-4">
+        <main className="mx-auto w-full max-w-5xl flex-1 px-5 py-8 md:px-8">
+          <header className="flex items-end justify-between gap-4 border-b-2 border-ink pb-6">
             <div>
-              <h1 className="text-2xl font-extrabold text-slate-900">Assessment Center</h1>
-              <p className="text-xs text-slate-500 mt-1">
-                Assessments are assembled from trainer-approved questions generated from uploaded
-                MoSPI training material
+              <p className="eyebrow">Assessment centre</p>
+              <h1 className="mt-2 font-display text-2xl font-semibold tracking-tightest text-ink">
+                Available assessments
+              </h1>
+              <p className="mt-1.5 max-w-xl text-xs leading-relaxed text-slate-500">
+                Assembled from trainer-approved questions generated from uploaded MoSPI training
+                material.
               </p>
             </div>
             <button
               onClick={load}
               disabled={loading}
-              className="flex items-center gap-1.5 text-xs font-bold text-slate-600 hover:text-slate-900 bg-white border border-slate-200 px-3 py-2 rounded-xl shadow-sm disabled:opacity-50"
+              className="inline-flex h-9 shrink-0 items-center gap-1.5 border border-rule-strong bg-white px-3 text-xs font-medium text-ink transition-colors hover:border-ink disabled:opacity-50"
             >
-              <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} /> Refresh
+              <RefreshCw className={`h-3.5 w-3.5 ${loading ? 'animate-spin' : ''}`} aria-hidden="true" />
+              Refresh
             </button>
-          </div>
+          </header>
+
+          <div className="mt-8 space-y-8">
 
           {loading && (
-            <div className="bg-white p-8 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-center gap-3 text-sm text-slate-500">
-              <Loader2 className="w-4 h-4 animate-spin" /> Checking for available assessments...
+            <div className="flex items-center justify-center gap-3 border border-rule bg-white px-5 py-10 text-xs text-slate-500">
+              <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> Checking for available
+              assessments…
             </div>
           )}
 
           {!loading && quizError && (
-            <div className="bg-rose-50 border border-rose-200 p-5 rounded-2xl space-y-1">
-              <div className="flex items-center gap-2 text-sm font-bold text-rose-800">
-                <AlertTriangle className="w-4 h-4" /> Could not check for an available assessment
+            <div role="alert" className="flex items-start gap-3 border-l-2 border-gap-600 bg-gap-50 px-4 py-3.5">
+              <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-gap-600" aria-hidden="true" />
+              <div className="min-w-0">
+                <h2 className="text-sm font-medium text-ink">
+                  Could not check for an available assessment
+                </h2>
+                <p className="mt-1 break-words font-mono text-[11px] text-gap-700">{quizError}</p>
               </div>
-              <p className="text-xs text-rose-700 font-mono break-words">{quizError}</p>
             </div>
           )}
 
           {!loading && !quizError && canStart && (
-            <div className="bg-gradient-to-r from-blue-900 to-slate-900 text-white p-6 rounded-3xl shadow-md border border-blue-800 flex flex-col sm:flex-row items-center justify-between gap-4">
-              <div>
-                <span className="text-xs font-mono text-blue-300 font-bold">
-                  AVAILABLE ASSESSMENT
-                </span>
-                <h2 className="text-xl font-bold mt-1">Competency Assessment</h2>
-                <p className="text-xs text-slate-300 mt-1">
-                  {questionCount} trainer-approved question{questionCount === 1 ? '' : 's'} ready
-                  {typeof quiz.approved_pool_size === 'number'
-                    ? ` (approved pool: ${quiz.approved_pool_size})`
-                    : ''}
-                  .
-                </p>
+            <section className="border border-ink bg-white">
+              <div className="flex flex-col justify-between gap-5 border-b border-rule px-5 py-5 sm:flex-row sm:items-end">
+                <div>
+                  <p className="eyebrow">Available assessment</p>
+                  <h2 className="mt-2 font-display text-xl font-semibold tracking-tight text-ink">
+                    Competency assessment
+                  </h2>
+                </div>
+                <Link
+                  href={`/dashboard/quiz/${encodeURIComponent(quiz.quiz_id)}`}
+                  className="inline-flex h-11 shrink-0 items-center gap-2 border border-navy-600 bg-navy-600 px-5 text-sm font-medium text-paper transition-colors hover:bg-navy-700"
+                >
+                  Start assessment <ArrowRight className="h-4 w-4" aria-hidden="true" />
+                </Link>
               </div>
-              <Link
-                href={`/dashboard/quiz/${encodeURIComponent(quiz.quiz_id)}`}
-                className="bg-blue-600 hover:bg-blue-500 text-white font-bold px-6 py-3 rounded-xl shadow-lg text-xs flex items-center gap-2 transition-all flex-shrink-0"
-              >
-                Start Assessment <ArrowRight className="w-4 h-4" />
-              </Link>
-            </div>
+              <dl className="m-0 grid grid-cols-2 gap-px bg-rule sm:grid-cols-3">
+                <div className="bg-white px-4 py-4">
+                  <dt className="eyebrow">Questions served</dt>
+                  <dd className="mt-2 font-display text-3xl font-semibold text-ink tnum">
+                    {questionCount}
+                  </dd>
+                  <p className="mt-1 text-[11px] text-slate-400">All trainer-approved</p>
+                </div>
+                <div className="bg-white px-4 py-4">
+                  <dt className="eyebrow">Approved pool</dt>
+                  <dd className="mt-2 font-display text-3xl font-semibold text-ink tnum">
+                    {typeof quiz.approved_pool_size === 'number' ? quiz.approved_pool_size : '—'}
+                  </dd>
+                  <p className="mt-1 text-[11px] text-slate-400">Questions cleared for release</p>
+                </div>
+                <div className="bg-white px-4 py-4 sm:col-span-1">
+                  <dt className="eyebrow">Session</dt>
+                  <dd className="mt-2 break-all font-mono text-[11px] text-ink">{quiz.quiz_id}</dd>
+                  <p className="mt-1 text-[11px] text-slate-400">Created by the backend</p>
+                </div>
+              </dl>
+            </section>
           )}
 
           {!loading && !quizError && !canStart && (
-            <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-2">
-              <h2 className="text-sm font-bold text-slate-800">No assessment available yet</h2>
-              <p className="text-xs text-slate-500 max-w-2xl">
+            <div className="border border-rule bg-white px-5 py-6">
+              <h2 className="text-sm font-medium text-ink">No assessment available yet</h2>
+              <p className="mt-1 max-w-2xl text-xs leading-relaxed text-slate-500">
                 {quiz?.message ||
                   'The backend reported no trainer-approved questions, so there is nothing to attempt yet.'}
               </p>
               {typeof quiz?.approved_pool_size === 'number' ? (
-                <p className="text-[11px] text-slate-400 font-mono">
+                <p className="mt-2 font-mono text-[11px] text-slate-400 tnum">
                   Approved question pool size: {quiz.approved_pool_size}
                 </p>
               ) : null}
@@ -177,82 +201,103 @@ export default function AssessmentCenterPage() {
           {/* The fixed-length quiz above serves a set list. The adaptive run instead
               chooses each next question from the officer's last two answers, so it is
               a separate entry point rather than a mode toggle on the same screen. */}
-          <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-            <div className="flex items-center gap-3">
-              <div className="p-2.5 bg-amber-100 text-amber-700 rounded-xl">
-                <Gauge className="w-5 h-5" />
-              </div>
-              <div>
-                <h3 className="text-sm font-bold text-slate-800">Adaptive Assessment</h3>
-                <p className="text-[11px] text-slate-500 mt-0.5 max-w-xl">
-                  Starts at medium and moves with your answers — two correct in a row steps the
-                  difficulty up, two incorrect steps it down. Each move is shown with the reason
-                  the engine recorded.
+          <section className="border border-rule bg-white">
+            <div className="flex flex-col justify-between gap-4 px-5 py-5 sm:flex-row sm:items-end">
+              <div className="min-w-0">
+                <p className="eyebrow">Alternative route</p>
+                <h2 className="mt-2 font-display text-lg font-semibold tracking-tight text-ink">
+                  Adaptive assessment
+                </h2>
+                <p className="mt-1.5 max-w-xl text-xs leading-relaxed text-slate-500">
+                  Starts at medium and moves with your answers: two correct in a row steps the
+                  difficulty up, two incorrect steps it down. Each move is shown with the reason the
+                  engine recorded.
                 </p>
               </div>
+              <Link
+                href="/dashboard/adaptive"
+                className="inline-flex h-11 shrink-0 items-center gap-2 border border-rule-strong bg-white px-5 text-sm font-medium text-ink transition-colors hover:border-ink"
+              >
+                Start adaptive run <ArrowRight className="h-4 w-4" aria-hidden="true" />
+              </Link>
             </div>
-            <Link
-              href="/dashboard/adaptive"
-              className="bg-slate-900 hover:bg-slate-800 text-white font-bold px-5 py-2.5 rounded-xl shadow text-xs flex items-center gap-2 flex-shrink-0"
-            >
-              Start Adaptive Run <ArrowRight className="w-4 h-4" />
-            </Link>
-          </div>
+            <dl className="m-0 grid grid-cols-3 gap-px border-t border-rule bg-rule">
+              {[
+                { k: 'Starting difficulty', v: 'Medium' },
+                { k: 'Steps up after', v: '2 correct' },
+                { k: 'Steps down after', v: '2 incorrect' },
+              ].map((s) => (
+                <div key={s.k} className="bg-white px-4 py-3">
+                  <dt className="eyebrow">{s.k}</dt>
+                  <dd className="mt-1.5 text-sm font-medium text-ink">{s.v}</dd>
+                </div>
+              ))}
+            </dl>
+          </section>
 
           {!loading && (
-            <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-4">
-              <div>
-                <h3 className="text-sm font-bold text-slate-800">Uploaded Training Material</h3>
-                <p className="text-[11px] text-slate-500 mt-0.5">
+            <section>
+              <div className="border-b border-ink pb-2.5">
+                <p className="eyebrow">Uploaded training material</p>
+                <p className="mt-1.5 max-w-2xl text-xs leading-relaxed text-slate-500">
                   Questions generated from these documents enter the trainer review queue; only
                   approved ones reach the assessment above.
                 </p>
               </div>
 
               {materialsError ? (
-                <div className="bg-rose-50 border border-rose-200 p-4 rounded-xl space-y-1">
-                  <div className="flex items-center gap-2 text-xs font-bold text-rose-800">
-                    <AlertTriangle className="w-3.5 h-3.5" /> Could not load uploaded material
+                <div
+                  role="alert"
+                  className="mt-4 flex items-start gap-3 border-l-2 border-gap-600 bg-gap-50 px-4 py-3.5"
+                >
+                  <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-gap-600" aria-hidden="true" />
+                  <div className="min-w-0">
+                    <h3 className="text-sm font-medium text-ink">Could not load uploaded material</h3>
+                    <p className="mt-1 break-words font-mono text-[11px] text-gap-700">
+                      {materialsError}
+                    </p>
                   </div>
-                  <p className="text-xs text-rose-700 font-mono break-words">{materialsError}</p>
                 </div>
               ) : materialList.length === 0 ? (
-                <p className="p-4 bg-slate-50 rounded-xl text-xs text-slate-500 border border-slate-200">
+                <p className="mt-4 max-w-xl border-l-2 border-rule-strong bg-paper-sunken px-4 py-3 text-xs leading-relaxed text-slate-500">
                   No training material has been uploaded yet. A trainer uploads documents from the
                   Document Upload screen.
                 </p>
               ) : (
-                <div className="space-y-3">
+                <ol className="m-0 mt-1 list-none p-0">
                   {materialList.map((m, idx) => (
-                    <div
+                    <li
                       key={m.id || idx}
-                      className="flex flex-col sm:flex-row items-start sm:items-center justify-between p-4 bg-slate-50 rounded-xl border border-slate-200/80 gap-3"
+                      className="flex flex-col items-start justify-between gap-2 border-b border-rule py-3.5 sm:flex-row sm:items-center"
                     >
-                      <div className="flex items-center space-x-3">
-                        <div className="p-2.5 bg-blue-100 text-blue-700 rounded-xl">
-                          <FileText className="w-5 h-5" />
-                        </div>
-                        <div>
-                          <h4 className="text-xs font-bold text-slate-900">
+                      <div className="flex min-w-0 items-baseline gap-3">
+                        <span className="font-mono text-[11px] text-slate-400 tnum">
+                          {String(idx + 1).padStart(2, '0')}
+                        </span>
+                        <div className="min-w-0">
+                          <h3 className="text-sm font-medium text-ink">
                             {m.title || m.filename || 'Untitled document'}
-                          </h4>
-                          <p className="text-[11px] text-slate-500 mt-0.5">
-                            {m.department || 'Department not recorded'}
-                            {typeof m.page_count === 'number' ? ` • ${m.page_count} pages` : ''}
-                          </p>
+                          </h3>
+                          <div className="mt-0.5 flex flex-wrap items-center gap-x-3 text-[11px] text-slate-500">
+                            <span>{m.department || 'Department not recorded'}</span>
+                            {typeof m.page_count === 'number' && (
+                              <span className="tnum">{m.page_count} pages</span>
+                            )}
+                          </div>
                         </div>
                       </div>
                       {m.status ? (
-                        <span className="text-[10px] font-bold font-mono px-2.5 py-1 rounded-full bg-slate-200 text-slate-700 border border-slate-300">
+                        <span className="shrink-0 border border-rule bg-paper-sunken px-2 py-0.5 font-mono text-[10px] uppercase tracking-eyebrow text-slate-500">
                           {m.status}
                         </span>
                       ) : null}
-                    </div>
+                    </li>
                   ))}
-                </div>
+                </ol>
               )}
-            </div>
+            </section>
           )}
+          </div>
         </main>
       </div>
     </div>

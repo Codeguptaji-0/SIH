@@ -3,7 +3,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { Navbar } from '@/components/Navbar';
 import { Sidebar } from '@/components/Sidebar';
-import { BookOpen, AlertTriangle, Loader2 } from 'lucide-react';
+import { AlertTriangle, Loader2, RefreshCw } from 'lucide-react';
 import { apiJson, ApiError } from '@/app/lib/api';
 
 /**
@@ -32,10 +32,11 @@ interface TrainerQuestion {
   source_reference: string;
 }
 
+/** Review status chips, in the three publication inks. */
 const STATUS_CLASSES: Record<string, string> = {
-  APPROVED: 'bg-emerald-100 text-emerald-800 border border-emerald-200',
-  PENDING: 'bg-amber-100 text-amber-800 border border-amber-200',
-  REJECTED: 'bg-rose-100 text-rose-800 border border-rose-200'
+  APPROVED: 'border-strong-200 bg-strong-50 text-strong-700',
+  PENDING: 'border-watch-200 bg-watch-50 text-watch-700',
+  REJECTED: 'border-gap-200 bg-gap-50 text-gap-700'
 };
 
 export default function QuestionBankPage() {
@@ -66,129 +67,168 @@ export default function QuestionBankPage() {
   const pendingCount = questions.filter((q) => q.review_status === 'PENDING').length;
 
   return (
-    <div className="min-h-screen bg-slate-50 flex flex-col">
-      <Navbar currentRole="TRAINER" />
+    <div className="flex min-h-screen flex-col bg-paper">
+      <Navbar />
 
       <div className="flex flex-1">
         <Sidebar role="TRAINER" />
 
-        <main className="flex-1 p-6 sm:p-8 max-w-7xl mx-auto space-y-6 w-full">
-          <div className="flex flex-wrap items-start justify-between gap-3">
-            <div>
-              <h1 className="text-2xl font-extrabold text-slate-900">Question Bank Repository</h1>
-              <p className="text-xs text-slate-500 mt-1">
+        <main className="mx-auto w-full max-w-5xl flex-1 px-5 py-8 md:px-8">
+          <header className="flex flex-col justify-between gap-5 border-b-2 border-ink pb-6 md:flex-row md:items-end">
+            <div className="min-w-0">
+              <p className="eyebrow">Trainer tools / question bank</p>
+              <h1 className="mt-2 font-display text-2xl font-semibold tracking-tightest text-ink">
+                Question bank repository
+              </h1>
+              <p className="mt-1.5 max-w-xl text-xs leading-relaxed text-slate-500">
                 Objective MCQs mapped to MoSPI statistical domains. Only APPROVED questions are
                 served to officials.
               </p>
             </div>
-            {!loading && !error && questions.length > 0 && (
-              <div className="text-xs font-mono font-bold text-slate-600 bg-white border border-slate-200 rounded-xl px-3 py-1.5">
-                {questions.length} total / {approvedCount} approved / {pendingCount} pending
-              </div>
-            )}
-          </div>
+            <button
+              type="button"
+              onClick={loadQuestions}
+              disabled={loading}
+              className="inline-flex h-9 shrink-0 items-center gap-1.5 border border-rule-strong bg-white px-3 text-xs font-medium text-ink transition-colors hover:border-ink disabled:opacity-50"
+            >
+              <RefreshCw
+                className={`h-3.5 w-3.5 ${loading ? 'animate-spin' : ''}`}
+                aria-hidden="true"
+              />
+              Refresh
+            </button>
+          </header>
+
+          <div className="mt-8 space-y-8">
 
           {loading && (
             <div
               role="status"
               aria-live="polite"
-              className="bg-white p-8 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-center gap-3 text-sm text-slate-500"
+              className="flex items-center justify-center gap-3 border border-rule bg-white px-5 py-10 text-xs text-slate-500"
             >
-              <Loader2 className="w-4 h-4 animate-spin text-blue-600" aria-hidden="true" />
-              Loading question bank...
+              <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> Loading question bank…
             </div>
           )}
 
           {!loading && error && (
             <div
               role="alert"
-              className="bg-white p-8 rounded-2xl border border-rose-200 shadow-sm text-center space-y-3"
+              className="flex items-start gap-3 border-l-2 border-gap-600 bg-gap-50 px-4 py-3.5"
             >
-              <AlertTriangle className="w-10 h-10 text-rose-600 mx-auto" aria-hidden="true" />
-              <h2 className="text-sm font-bold text-slate-900">Question bank could not be loaded</h2>
-              <p className="text-xs text-rose-700 font-mono break-words">{error}</p>
-              <button
-                type="button"
-                onClick={loadQuestions}
-                className="mt-2 px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold shadow transition-colors"
-              >
-                Try again
-              </button>
+              <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-gap-600" aria-hidden="true" />
+              <div className="min-w-0">
+                <h2 className="text-sm font-medium text-ink">Question bank could not be loaded</h2>
+                <p className="mt-1 break-words font-mono text-[11px] text-gap-700">{error}</p>
+                <p className="mt-1.5 text-xs text-gap-700">
+                  No questions are listed, because none were received from the server.
+                </p>
+              </div>
             </div>
           )}
 
           {!loading && !error && questions.length === 0 && (
-            <div className="bg-white p-10 rounded-2xl border border-slate-200 shadow-sm text-center space-y-3">
-              <BookOpen className="w-10 h-10 text-slate-400 mx-auto" aria-hidden="true" />
-              <h2 className="text-sm font-bold text-slate-900">The question bank is empty</h2>
-              <p className="text-xs text-slate-500 max-w-xl mx-auto leading-relaxed">
+            <div className="border border-rule bg-white px-5 py-6">
+              <h2 className="text-sm font-medium text-ink">The question bank is empty</h2>
+              <p className="mt-1 max-w-xl text-xs leading-relaxed text-slate-500">
                 No questions have been generated yet. Upload a learning material and generate MCQs
                 from it; they will arrive here with review_status PENDING until a trainer approves
                 them.
               </p>
-              <button
-                type="button"
-                onClick={loadQuestions}
-                className="mt-2 px-5 py-2.5 rounded-xl border border-slate-300 text-xs font-bold text-slate-600 hover:bg-slate-100 transition-colors"
-              >
-                Refresh
-              </button>
             </div>
           )}
 
           {!loading && !error && questions.length > 0 && (
-            <div className="space-y-4">
+            <dl className="m-0 grid grid-cols-1 gap-px border border-rule bg-rule sm:grid-cols-3">
+              <div className="bg-white px-5 py-4">
+                <dt className="eyebrow">Total questions</dt>
+                <dd className="m-0 mt-1.5 font-display text-3xl font-semibold text-ink tnum">
+                  {questions.length}
+                </dd>
+              </div>
+              <div className="bg-white px-5 py-4">
+                <dt className="eyebrow">Approved</dt>
+                <dd className="m-0 mt-1.5 font-display text-3xl font-semibold text-strong-700 tnum">
+                  {approvedCount}
+                </dd>
+              </div>
+              <div className="bg-white px-5 py-4">
+                <dt className="eyebrow">Pending review</dt>
+                <dd className="m-0 mt-1.5 font-display text-3xl font-semibold text-watch-700 tnum">
+                  {pendingCount}
+                </dd>
+              </div>
+            </dl>
+          )}
+
+          {!loading && !error && questions.length > 0 && (
+            <section>
+              <div className="border-b border-ink pb-2.5">
+                <p className="eyebrow">Question records</p>
+                <p className="mt-1.5 max-w-2xl text-xs leading-relaxed text-slate-500">
+                  The shaded option is the one recorded as correct. Review status is shown exactly as
+                  stored, so a PENDING or REJECTED question is not being served to officials.
+                </p>
+              </div>
+              <ol className="m-0 mt-1 list-none p-0">
               {questions.map((q, idx) => {
                 const options = Array.isArray(q.options) ? q.options : [];
                 const statusClass =
-                  STATUS_CLASSES[q.review_status] ?? 'bg-slate-100 text-slate-700 border border-slate-200';
+                  STATUS_CLASSES[q.review_status] ?? 'border-rule bg-paper-sunken text-slate-500';
                 return (
-                  <div
-                    key={q.id || idx}
-                    className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-3"
-                  >
-                    <div className="flex flex-wrap items-center justify-between gap-2">
-                      <span className="text-[10px] font-bold font-mono px-2.5 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-200">
-                        {q.competency_name}
+                  <li key={q.id || idx} className="border-b border-rule py-4">
+                    <div className="flex items-baseline gap-3">
+                      <span className="font-mono text-[11px] text-slate-400 tnum">
+                        {String(idx + 1).padStart(2, '0')}
                       </span>
-                      <span
-                        className={`text-[10px] font-bold uppercase font-mono px-2.5 py-0.5 rounded-full ${statusClass}`}
-                      >
-                        Status: {q.review_status}
-                      </span>
-                    </div>
-
-                    <h2 className="text-xs font-bold text-slate-900">
-                      {idx + 1}. {q.question_text}
-                    </h2>
-
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
-                      {options.map((opt, oIdx) => (
-                        <div
-                          key={oIdx}
-                          className={`p-2.5 rounded-xl border font-medium ${
-                            oIdx === q.correct_option
-                              ? 'bg-emerald-50 border-emerald-300 text-emerald-900 font-bold'
-                              : 'bg-slate-50 border-slate-200 text-slate-700'
-                          }`}
-                        >
-                          {String.fromCharCode(65 + oIdx)}. {opt}
-                          {oIdx === q.correct_option && ' (Correct)'}
+                      <div className="min-w-0 flex-1">
+                        <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
+                          <span className="eyebrow">{q.competency_name}</span>
+                          <span
+                            className={`border px-2 py-0.5 font-mono text-[10px] uppercase tracking-eyebrow ${statusClass}`}
+                          >
+                            {q.review_status}
+                          </span>
                         </div>
-                      ))}
-                    </div>
 
-                    <div className="text-[11px] text-slate-500 pt-2 border-t border-slate-100">
-                      <strong>Explanation:</strong>{' '}
-                      {q.explanation || <span className="text-slate-400">No explanation recorded.</span>}
+                        <h2 className="mt-1.5 text-sm font-medium text-ink">{q.question_text}</h2>
+
+                        <ul className="m-0 mt-2.5 grid list-none grid-cols-1 gap-px border border-rule bg-rule p-0 sm:grid-cols-2">
+                          {options.map((opt, oIdx) => (
+                            <li
+                              key={oIdx}
+                              className={`px-3 py-2 text-xs ${
+                                oIdx === q.correct_option
+                                  ? 'bg-strong-50 font-medium text-strong-800'
+                                  : 'bg-white text-slate-600'
+                              }`}
+                            >
+                              <span className="font-mono text-[11px] text-slate-400">
+                                {String.fromCharCode(65 + oIdx)}.
+                              </span>{' '}
+                              {opt}
+                              {oIdx === q.correct_option && ' (Correct)'}
+                            </li>
+                          ))}
+                        </ul>
+
+                        <div className="mt-2.5 border-l-2 border-rule-strong bg-paper-sunken px-3.5 py-2.5">
+                          <p className="eyebrow">Explanation</p>
+                          <p className="mt-1 text-[11px] leading-relaxed text-slate-500">
+                            {q.explanation || (
+                              <span className="text-slate-400">No explanation recorded.</span>
+                            )}
+                          </p>
+                        </div>
+                      </div>
                     </div>
-                  </div>
+                  </li>
                 );
               })}
-            </div>
+              </ol>
+            </section>
           )}
-
-
+          </div>
         </main>
       </div>
     </div>

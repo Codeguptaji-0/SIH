@@ -7,8 +7,6 @@ import { Sidebar } from '@/components/Sidebar';
 import {
   AlertTriangle,
   ArrowRight,
-  Award,
-  HelpCircle,
   Loader2,
   RefreshCw,
 } from 'lucide-react';
@@ -49,6 +47,39 @@ function describeError(e: unknown): string {
   return 'Cannot reach the SkillSetu backend. Start it with: uvicorn app.main:app --reload';
 }
 
+/**
+ * Band for one competency row.
+ *
+ * The backend's `status` is authoritative when it is present; the score-based
+ * thresholds are only a fallback so a row without a status still gets a band
+ * instead of silently rendering as strong.
+ */
+function bandOf(status?: string, score?: number) {
+  const s = typeof score === 'number' ? score : 0;
+  if (status === 'critical_gap' || (!status && s < 60)) {
+    return {
+      label: 'Critical gap',
+      edge: 'border-l-gap-600',
+      cls: 'text-gap-700',
+      chip: 'border-gap-200 bg-gap-50 text-gap-700',
+    };
+  }
+  if (status === 'needs_improvement' || (!status && s < 80)) {
+    return {
+      label: 'Needs improvement',
+      edge: 'border-l-watch-500',
+      cls: 'text-watch-700',
+      chip: 'border-watch-200 bg-watch-50 text-watch-700',
+    };
+  }
+  return {
+    label: 'Strong',
+    edge: 'border-l-strong-600',
+    cls: 'text-strong-700',
+    chip: 'border-strong-200 bg-strong-50 text-strong-700',
+  };
+}
+
 export default function ResultsPage() {
   const [results, setResults] = useState<CompetencyResponse>(null);
   const [error, setError] = useState<string>(null);
@@ -79,173 +110,163 @@ export default function ResultsPage() {
     : null;
 
   return (
-    <div className="min-h-screen bg-slate-50 flex flex-col">
-      <Navbar currentRole="OFFICIAL" />
+    <div className="flex min-h-screen flex-col bg-paper">
+      <Navbar />
 
       <div className="flex flex-1">
         <Sidebar role="OFFICIAL" />
 
-        <main className="flex-1 p-6 sm:p-8 max-w-7xl mx-auto space-y-6">
-          {/* Header Banner */}
-          <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm flex flex-col sm:flex-row items-center justify-between gap-4">
-            <div>
-              <div className="text-xs font-mono text-blue-600 font-bold uppercase">
-                Assessment Results &amp; Gap Diagnosis
-              </div>
-              <h1 className="text-2xl font-extrabold text-slate-900 mt-1">
-                Competency Evaluation Summary
+        <main className="mx-auto w-full max-w-5xl flex-1 px-5 py-8 md:px-8">
+          <header className="flex flex-col justify-between gap-5 border-b-2 border-ink pb-6 md:flex-row md:items-end">
+            <div className="min-w-0">
+              <p className="eyebrow">Assessment results and gap diagnosis</p>
+              <h1 className="mt-2 font-display text-2xl font-semibold tracking-tightest text-ink">
+                Competency evaluation summary
               </h1>
-              <p className="text-xs text-slate-500 mt-0.5">
+              <p className="mt-1.5 text-xs leading-relaxed text-slate-500">
                 {assessedOn
                   ? `Latest scored attempt: ${assessedOn}`
-                  : 'Categorised into Strong, Needs Improvement and Critical Gap'}
+                  : 'Each competency is placed in one of three bands: strong, needs improvement, critical gap.'}
               </p>
             </div>
 
-            <div className="flex items-center gap-3">
+            <div className="flex shrink-0 items-end gap-5">
               <button
                 onClick={load}
                 disabled={loading}
-                className="flex items-center gap-1.5 text-xs font-bold text-slate-600 hover:text-slate-900 bg-white border border-slate-200 px-3 py-2 rounded-xl shadow-sm disabled:opacity-50"
+                className="inline-flex h-9 items-center gap-1.5 border border-rule-strong bg-white px-3 text-xs font-medium text-ink transition-colors hover:border-ink disabled:opacity-50"
               >
-                <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} /> Refresh
+                <RefreshCw className={`h-3.5 w-3.5 ${loading ? 'animate-spin' : ''}`} aria-hidden="true" />
+                Refresh
               </button>
 
-              {hasResults && (
-                <div className="flex items-center space-x-4 bg-slate-50 p-4 rounded-2xl border border-slate-200">
-                  <div className="text-right">
-                    <div className="text-[10px] text-slate-400 font-semibold uppercase">
-                      Overall Score
-                    </div>
-                    <div className="text-3xl font-black text-slate-900">
-                      {results.overall_score}%
-                    </div>
-                  </div>
-                  <div className="w-12 h-12 bg-blue-600 text-white rounded-2xl flex items-center justify-center font-bold">
-                    <Award className="w-6 h-6" />
-                  </div>
+              {hasResults && typeof results.overall_score === 'number' && (
+                <div>
+                  <p className="eyebrow">Overall score</p>
+                  <p className="mt-1 font-display text-4xl font-semibold text-ink tnum">
+                    {results.overall_score}%
+                  </p>
                 </div>
               )}
             </div>
-          </div>
+          </header>
+
+          <div className="mt-8 space-y-8">
 
           {loading && (
-            <div className="bg-white p-8 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-center gap-3 text-sm text-slate-500">
-              <Loader2 className="w-4 h-4 animate-spin" /> Loading your assessment results...
+            <div className="flex items-center justify-center gap-3 border border-rule bg-white px-5 py-10 text-xs text-slate-500">
+              <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> Loading your assessment
+              results…
             </div>
           )}
 
           {!loading && error && (
-            <div className="bg-rose-50 border border-rose-200 p-5 rounded-2xl space-y-1">
-              <div className="flex items-center gap-2 text-sm font-bold text-rose-800">
-                <AlertTriangle className="w-4 h-4" /> Could not load your results
+            <div role="alert" className="flex items-start gap-3 border-l-2 border-gap-600 bg-gap-50 px-4 py-3.5">
+              <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-gap-600" aria-hidden="true" />
+              <div className="min-w-0">
+                <h2 className="text-sm font-medium text-ink">Could not load your results</h2>
+                <p className="mt-1 break-words font-mono text-[11px] text-gap-700">{error}</p>
+                <p className="mt-1.5 text-xs text-gap-700">
+                  No scores or gap diagnostics are shown, because none were received.
+                </p>
               </div>
-              <p className="text-xs text-rose-700 font-mono break-words">{error}</p>
-              <p className="text-xs text-rose-700">
-                No scores or gap diagnostics are displayed, because none were received.
-              </p>
             </div>
           )}
 
           {!loading && !error && !hasResults && (
-            <div className="bg-white p-8 rounded-2xl border border-slate-200 shadow-sm text-center space-y-3">
-              <div className="w-12 h-12 mx-auto bg-slate-100 text-slate-500 rounded-2xl flex items-center justify-center">
-                <HelpCircle className="w-6 h-6" />
-              </div>
-              <h3 className="text-sm font-bold text-slate-800">No scored assessment yet</h3>
-              <p className="text-xs text-slate-500 max-w-md mx-auto">
-                Gap diagnostics are generated from a submitted assessment. Complete an assessment and
-                your per-competency scores and the evidence behind them will appear here.
+            <div className="border border-rule bg-white px-5 py-6">
+              <h2 className="text-sm font-medium text-ink">No scored assessment yet</h2>
+              <p className="mt-1 max-w-xl text-xs leading-relaxed text-slate-500">
+                Gap diagnostics are generated from a submitted assessment. Complete one and your
+                per-competency scores, with the evidence behind each, appear here.
               </p>
               <Link
                 href="/dashboard/assessment"
-                className="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold px-5 py-2.5 rounded-xl shadow transition-all"
+                className="mt-4 inline-flex h-11 items-center gap-2 border border-navy-600 bg-navy-600 px-5 text-sm font-medium text-paper transition-colors hover:bg-navy-700"
               >
-                Go to Assessment Center <ArrowRight className="w-4 h-4" />
+                Go to assessment centre <ArrowRight className="h-4 w-4" aria-hidden="true" />
               </Link>
             </div>
           )}
 
           {!loading && !error && hasResults && (
-            <div className="space-y-4">
-              <h3 className="text-sm font-bold text-slate-800 flex items-center gap-2">
-                <HelpCircle className="w-4 h-4 text-blue-600" /> Transparent Gap Diagnostics
-              </h3>
+            <section>
+              <div className="border-b border-ink pb-2.5">
+                <p className="eyebrow">Gap diagnostics</p>
+                <p className="mt-1.5 max-w-2xl text-xs leading-relaxed text-slate-500">
+                  One entry per assessed competency, with the evidence the scoring engine recorded
+                  for it. Scores are arithmetic over your answers, not a model's opinion.
+                </p>
+              </div>
 
-              <div className="grid grid-cols-1 gap-4">
+              <ol className="m-0 mt-1 list-none p-0">
                 {compList.map((item, idx) => {
-                  const isGap = item.status === 'critical_gap';
-                  const isImprove = item.status === 'needs_improvement';
+                  const band = bandOf(item.status, item.score);
                   return (
-                    <div
+                    <li
                       key={item.competency_id || idx}
-                      className={`p-5 rounded-2xl border transition-all flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 ${
-                        isGap
-                          ? 'bg-rose-50/60 border-rose-200'
-                          : isImprove
-                          ? 'bg-amber-50/60 border-amber-200'
-                          : 'bg-emerald-50/60 border-emerald-200'
-                      }`}
+                      className={`flex flex-col justify-between gap-3 border-b border-rule border-l-2 py-4 pl-4 pr-1 sm:flex-row sm:items-baseline ${band.edge}`}
                     >
-                      <div className="space-y-1">
-                        <div className="flex items-center space-x-2">
-                          {item.status ? (
-                            <span
-                              className={`text-[10px] font-bold px-2.5 py-0.5 rounded-full uppercase font-mono ${
-                                isGap
-                                  ? 'bg-rose-100 text-rose-800 border border-rose-300'
-                                  : isImprove
-                                  ? 'bg-amber-100 text-amber-800 border border-amber-300'
-                                  : 'bg-emerald-100 text-emerald-800 border border-emerald-300'
-                              }`}
-                            >
-                              {item.status.replace(/_/g, ' ')}
-                            </span>
-                          ) : null}
-                          {item.domain ? (
-                            <span className="text-[11px] text-slate-500 font-mono">{item.domain}</span>
-                          ) : null}
+                      <div className="min-w-0">
+                        <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1">
+                          <span
+                            className={`border px-2 py-0.5 font-mono text-[10px] uppercase tracking-eyebrow ${band.chip}`}
+                          >
+                            {item.status ? item.status.replace(/_/g, ' ') : band.label}
+                          </span>
+                          {item.domain ? <span className="eyebrow">{item.domain}</span> : null}
                         </div>
-                        <h4 className="text-sm font-bold text-slate-900">{item.competency_name}</h4>
+                        <h3 className="mt-1.5 text-sm font-medium text-ink">
+                          {item.competency_name || 'Competency name not returned'}
+                        </h3>
                         {item.evidence ? (
-                          <p className="text-xs text-slate-600 leading-relaxed font-medium">
+                          <p className="mt-1 max-w-2xl text-xs leading-relaxed text-slate-600">
                             {item.evidence}
                           </p>
                         ) : (
-                          <p className="text-xs text-slate-400 italic">
+                          <p className="mt-1 text-xs text-slate-400">
                             No evidence text was returned for this competency.
                           </p>
                         )}
                       </div>
 
-                      <div className="text-right flex-shrink-0">
-                        <div className="text-2xl font-extrabold text-slate-900">{item.score}%</div>
-                        <div className="text-[10px] text-slate-400 font-medium">Competency Score</div>
+                      <div className="shrink-0 text-left sm:text-right">
+                        <p className={`font-display text-2xl font-semibold tnum ${band.cls}`}>
+                          {typeof item.score === 'number' ? `${item.score}%` : '—'}
+                        </p>
+                        <p className="mt-0.5 text-[11px] text-slate-400">Competency score</p>
                       </div>
-                    </div>
+                    </li>
                   );
                 })}
-              </div>
-            </div>
+              </ol>
+              <p className="mt-3 text-xs leading-relaxed text-slate-400">
+                Bands: 80 and above is strong, 60 to 79 needs improvement, below 60 is a critical gap.
+              </p>
+            </section>
           )}
 
           {!loading && !error && hasResults && (
-            <div className="bg-gradient-to-r from-blue-900 to-indigo-900 text-white p-6 rounded-3xl shadow-xl flex flex-col sm:flex-row items-center justify-between gap-4">
-              <div>
-                <h3 className="text-lg font-extrabold">Ready to bridge these gaps?</h3>
-                <p className="text-xs text-slate-300 mt-1">
-                  Your learning path is built from the competencies flagged above, using the
-                  available iGOT Karmayogi / NSSTA TPAC catalogue entries.
+            <section className="flex flex-col justify-between gap-4 border border-ink bg-white px-5 py-5 sm:flex-row sm:items-end">
+              <div className="min-w-0">
+                <p className="eyebrow">Next step</p>
+                <h2 className="mt-2 font-display text-lg font-semibold tracking-tight text-ink">
+                  Bridge these gaps
+                </h2>
+                <p className="mt-1.5 max-w-xl text-xs leading-relaxed text-slate-500">
+                  Your learning path is ordered by the shortfalls above and drawn from the available
+                  iGOT Karmayogi and NSSTA TPAC catalogue entries.
                 </p>
               </div>
               <Link
                 href="/dashboard/learning-path"
-                className="bg-blue-500 hover:bg-blue-400 text-white text-xs font-extrabold px-6 py-3 rounded-xl shadow-lg transition-all flex items-center gap-2 flex-shrink-0"
+                className="inline-flex h-11 shrink-0 items-center gap-2 border border-navy-600 bg-navy-600 px-5 text-sm font-medium text-paper transition-colors hover:bg-navy-700"
               >
-                View Personalised Training Path <ArrowRight className="w-4 h-4" />
+                View training path <ArrowRight className="h-4 w-4" aria-hidden="true" />
               </Link>
-            </div>
+            </section>
           )}
+          </div>
         </main>
       </div>
     </div>

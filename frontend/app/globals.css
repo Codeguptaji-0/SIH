@@ -2,22 +2,176 @@
 @tailwind components;
 @tailwind utilities;
 
+/*
+ * SkillSetu base layer - "statistical release".
+ *
+ * Everything here exists to make the app behave like a printed statistical
+ * publication: paper ground, hairline rules, figures that align in columns, and
+ * no decorative depth. Component-level styling lives in the components; this
+ * file only sets the floor.
+ */
+
 :root {
-  --background: #f8fafc;
-  --foreground: #0f172a;
+  color-scheme: light;
+
+  --paper: #fafaf7;
+  --paper-sunken: #f1f0ea;
+  --ink: #14181f;
+  --slate: #5a6472;
+  --rule: #d9d7ce;
+  --navy: #16365c;
 }
 
-body {
-  color: var(--foreground);
-  background: var(--background);
-  font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
-  margin: 0;
-  padding: 0;
+@layer base {
+  html {
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    margin: 0;
+    padding: 0;
+    background: var(--paper);
+    color: var(--ink);
+    font-family: 'IBM Plex Sans', 'IBM Plex Sans Devanagari', 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
+    font-feature-settings: 'kern' 1, 'liga' 1;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* Headings are the display face, set tight and slightly expanded. */
+  h1, h2, h3, h4 {
+    font-family: 'Archivo', 'Helvetica Neue', Arial, sans-serif;
+    font-stretch: 108%;
+    letter-spacing: -0.02em;
+    text-wrap: balance;
+  }
+
+  /*
+   * Figures in tables must line up, which is the whole reason a statistical
+   * release looks the way it does. IBM Plex Sans ships proportional figures by
+   * default, so tabular numerals are requested explicitly wherever numbers sit
+   * in a column.
+   */
+  th, td, time, output,
+  input[type='number'] {
+    font-variant-numeric: tabular-nums;
+    font-feature-settings: 'tnum' 1;
+  }
+
+  /* Rules, not borders with radius. */
+  hr {
+    border: 0;
+    border-top: 1px solid var(--rule);
+    margin: 0;
+  }
+
+  ::selection {
+    background: #dde3ec;
+    color: var(--ink);
+  }
+
+  /*
+   * One visible focus treatment for the whole app. Several pages set
+   * `focus:outline-none` and then style a ring themselves; this keeps keyboard
+   * users covered even where a component forgets.
+   */
+  :focus-visible {
+    outline: 2px solid var(--navy);
+    outline-offset: 2px;
+  }
+
+  /* A caret that matches the ink rather than the browser default blue. */
+  input, textarea, select {
+    caret-color: var(--navy);
+  }
 }
 
-/* Glassmorphism utility */
-.glass-card {
-  background: rgba(255, 255, 255, 0.9);
-  backdrop-filter: blur(8px);
-  border: 1px solid rgba(226, 232, 240, 0.8);
+@layer components {
+  /*
+   * Section eyebrow: the small ruled label above a heading, the way a release
+   * labels its sections. Carries the section's identity, so it should say
+   * something true - a table number, a source, a date - not a slogan.
+   */
+  .eyebrow {
+    font-family: 'IBM Plex Mono', ui-monospace, Consolas, monospace;
+    font-size: 0.6875rem;
+    font-weight: 500;
+    line-height: 1;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--slate);
+  }
+
+  /* Figures aligned in a column, for numbers outside a real <table>. */
+  .tnum {
+    font-variant-numeric: tabular-nums;
+    font-feature-settings: 'tnum' 1;
+  }
+
+  /*
+   * Ruled data table. Horizontal rules only - vertical lines make a table look
+   * like a spreadsheet, and statistical releases do not use them.
+   */
+  .table-release {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.8125rem;
+  }
+  .table-release thead th {
+    border-bottom: 1px solid var(--ink);
+    padding: 0.5rem 0.75rem;
+    font-family: 'IBM Plex Mono', ui-monospace, monospace;
+    font-size: 0.6875rem;
+    font-weight: 500;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--slate);
+    text-align: left;
+    white-space: nowrap;
+  }
+  /*
+   * Body cells. Row-header cells (`<th scope="row">`) are included so a table
+   * whose first column is a header still gets an unbroken rule across every
+   * column - without this, the rules stop short of the first cell.
+   */
+  .table-release tbody td,
+  .table-release tbody th {
+    border-bottom: 1px solid var(--rule);
+    padding: 0.625rem 0.75rem;
+    vertical-align: baseline;
+  }
+  .table-release tbody tr:last-child td,
+  .table-release tbody tr:last-child th {
+    border-bottom: 1px solid var(--ink);
+  }
+  .table-release .num {
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+  }
+
+  /*
+   * Replaces the old .glass-card. Kept under its original name because pages
+   * still reference it; a translucent blurred panel has no place on paper, so it
+   * now resolves to a plain ruled card.
+   */
+  .glass-card {
+    background: #ffffff;
+    border: 1px solid var(--rule);
+    backdrop-filter: none;
+  }
+}
+
+/*
+ * Respect the platform setting. Several pages animate on mount; a user who has
+ * asked for less motion should get the end state immediately, not a faster
+ * version of the same movement.
+ */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
 }

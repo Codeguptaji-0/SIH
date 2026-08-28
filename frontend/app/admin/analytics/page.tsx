@@ -1,22 +1,10 @@
 "use client";
 
 import React, { useCallback, useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
 import { Navbar } from '@/components/Navbar';
 import { Sidebar } from '@/components/Sidebar';
-import {
-  Users,
-  Award,
-  AlertTriangle,
-  TrendingUp,
-  TrendingDown,
-  Minus,
-  HelpCircle,
-  BarChart3,
-  Loader2
-} from 'lucide-react';
+import { AlertTriangle, Loader2, RefreshCw } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
-import { useAuth } from '../../context/AuthContext';
 import { apiJson, ApiError } from '../../lib/api';
 
 /**
@@ -42,12 +30,22 @@ interface Analytics {
   training_demand: Array<{ course_title: string; enrolled_officials: number; provider: string }>;
 }
 
+/* Chart inks, matching the tokens in tailwind.config.js. */
+const INK_RULE = '#D9D7CE';
+const INK_SLATE = '#5A6472';
+const INK_NAVY = '#1B3A6B';
+
+/* Band ink for a 0-100 figure: 80 and above strong, 60 to 79 watch, below 60 a gap. */
+function bandInk(score: number) {
+  if (score >= 80) return 'text-strong-700';
+  if (score >= 60) return 'text-watch-700';
+  return 'text-gap-700';
+}
+
 export default function AdminAnalyticsPage() {
   const [analytics, setAnalytics] = useState<Analytics | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const { user, ready } = useAuth();
-  const router = useRouter();
 
   const fetchAnalytics = useCallback(async () => {
     setLoading(true);
@@ -64,22 +62,16 @@ export default function AdminAnalyticsPage() {
     }
   }, []);
 
-  /**
-   * A visitor without an ADMIN session is sent to the login screen; the
-   * backend's require_role("ADMIN") guard is the real gate.
+  /*
+   * No session check here any more. app/admin/layout.tsx wraps this segment in
+   * RequireAuth allow={['ADMIN']}, which does not render children until a
+   * session is confirmed, so this page only mounts for a signed-in ADMIN and
+   * the fetch below cannot fire unauthenticated. The real gate remains
+   * require_role("ADMIN") on the FastAPI admin router.
    */
   useEffect(() => {
-    if (!ready) return;
-    if (!user) {
-      router.replace('/login');
-      return;
-    }
-    if (user.role !== 'ADMIN') {
-      router.replace('/dashboard');
-      return;
-    }
     fetchAnalytics();
-  }, [ready, user?.role, fetchAnalytics, router]);
+  }, [fetchAnalytics]);
 
   const totalOfficials = analytics?.total_officials ?? 0;
   const completedCount = analytics?.assessments_completed ?? 0;
@@ -111,252 +103,315 @@ export default function AdminAnalyticsPage() {
     trainingDemand.length > 0;
 
   return (
-    <div className="min-h-screen bg-slate-50 flex flex-col">
-      <Navbar currentRole="ADMIN" />
+    <div className="flex min-h-screen flex-col bg-paper">
+      <Navbar />
 
       <div className="flex flex-1">
         <Sidebar role="ADMIN" />
 
-        <main className="flex-1 p-6 sm:p-8 max-w-7xl mx-auto space-y-6 w-full">
-          <div className="flex items-center justify-between">
+        <main className="mx-auto w-full max-w-6xl flex-1 px-5 py-8 md:px-8">
+          <header className="flex items-end justify-between gap-4 border-b-2 border-ink pb-6">
             <div>
-              <h1 className="text-2xl font-extrabold text-slate-900">Department Aggregate Analytics</h1>
-              <p className="text-xs text-slate-500 mt-1">
-                Organization-wide skill readiness aggregated from recorded assessment attempts
+              <p className="eyebrow">DIID executive dashboard</p>
+              <h1 className="mt-2 font-display text-2xl font-semibold tracking-tightest text-ink">
+                Department Aggregate Analytics
+              </h1>
+              <p className="mt-1.5 max-w-2xl text-xs leading-relaxed text-slate-500">
+                Organization-wide skill readiness aggregated from recorded assessment attempts.
+                Every figure below is returned by GET /api/admin/analytics; counters may
+                legitimately be 0 and collections may be empty.
               </p>
             </div>
-            <div className="bg-purple-100 border border-purple-300 text-purple-800 px-3 py-1 rounded-xl text-xs font-mono font-bold">
-              DIID Executive Dashboard
-            </div>
-          </div>
-
-          {loading && (
-            <div
-              role="status"
-              aria-live="polite"
-              className="bg-white p-8 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-center gap-3 text-sm text-slate-500"
+            <button
+              type="button"
+              onClick={fetchAnalytics}
+              disabled={loading}
+              className="inline-flex h-9 shrink-0 items-center gap-1.5 border border-rule-strong bg-white px-3 text-xs font-medium text-ink transition-colors hover:border-ink disabled:opacity-50"
             >
-              <Loader2 className="w-4 h-4 animate-spin text-purple-600" aria-hidden="true" />
-              Loading department analytics...
-            </div>
-          )}
+              <RefreshCw className={`h-3.5 w-3.5 ${loading ? 'animate-spin' : ''}`} aria-hidden="true" />
+              Refresh
+            </button>
+          </header>
 
-          {!loading && error && (
-            <div
-              role="alert"
-              className="bg-white p-8 rounded-2xl border border-rose-200 shadow-sm text-center space-y-3"
-            >
-              <AlertTriangle className="w-10 h-10 text-rose-600 mx-auto" aria-hidden="true" />
-              <h2 className="text-sm font-bold text-slate-900">Analytics could not be loaded</h2>
-              <p className="text-xs text-rose-700 font-mono break-words">{error}</p>
-              <button
-                type="button"
-                onClick={fetchAnalytics}
-                className="mt-2 px-5 py-2.5 rounded-xl bg-purple-600 hover:bg-purple-500 text-white text-xs font-bold shadow transition-colors"
+          <div className="mt-8 space-y-8">
+            {loading && (
+              <div
+                role="status"
+                aria-live="polite"
+                className="flex items-center justify-center gap-3 border border-rule bg-white px-5 py-10 text-xs text-slate-500"
               >
-                Try again
-              </button>
-            </div>
-          )}
+                <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
+                Loading department analytics…
+              </div>
+            )}
 
-          {!loading && !error && !hasAnyData && (
-            <div className="bg-white p-10 rounded-2xl border border-slate-200 shadow-sm text-center space-y-3">
-              <BarChart3 className="w-10 h-10 text-slate-400 mx-auto" aria-hidden="true" />
-              <h2 className="text-sm font-bold text-slate-900">No assessment data recorded yet</h2>
-              <p className="text-xs text-slate-500 max-w-xl mx-auto leading-relaxed">
-                Readiness, skill gaps and course demand are all computed from completed assessment
-                attempts. Once officials complete assessments against trainer-approved questions,
-                aggregates will appear here.
-              </p>
-              <button
-                type="button"
-                onClick={fetchAnalytics}
-                className="mt-2 px-5 py-2.5 rounded-xl border border-slate-300 text-xs font-bold text-slate-600 hover:bg-slate-100 transition-colors"
-              >
-                Refresh
-              </button>
-            </div>
-          )}
-
-          {!loading && !error && hasAnyData && (
-            <>
-              {/* Key Admin KPIs - all four are direct query results and may be 0 */}
-              <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
-                <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-between">
-                  <div>
-                    <div className="text-xs text-slate-500 font-medium">Total Officials</div>
-                    <div className="text-2xl font-extrabold text-slate-900 mt-1">{totalOfficials}</div>
-                    <div className="text-[10px] text-slate-400 mt-1">Registered OFFICIAL accounts</div>
-                  </div>
-                  <div className="w-12 h-12 bg-purple-50 text-purple-600 rounded-2xl flex items-center justify-center">
-                    <Users className="w-6 h-6" aria-hidden="true" />
-                  </div>
+            {!loading && error && (
+              <div role="alert" className="flex items-start gap-3 border-l-2 border-gap-600 bg-gap-50 px-4 py-3.5">
+                <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-gap-600" aria-hidden="true" />
+                <div className="min-w-0">
+                  <h2 className="text-sm font-medium text-ink">Analytics could not be loaded</h2>
+                  <p className="mt-1 break-words font-mono text-[11px] text-gap-700">{error}</p>
+                  <button
+                    type="button"
+                    onClick={fetchAnalytics}
+                    className="mt-3 inline-flex h-11 items-center gap-2 border border-navy-600 bg-navy-600 px-5 text-sm font-medium text-paper transition-colors hover:bg-navy-700"
+                  >
+                    Try again
+                  </button>
                 </div>
+              </div>
+            )}
 
-                <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-between">
-                  <div>
-                    <div className="text-xs text-slate-500 font-medium">Assessments Completed</div>
-                    <div className="text-2xl font-extrabold text-blue-600 mt-1">{completedCount}</div>
-                    <div className="text-[10px] text-slate-400 font-semibold mt-1">
+            {!loading && !error && !hasAnyData && (
+              <div className="border border-rule bg-white px-5 py-6">
+                <h2 className="text-sm font-medium text-ink">No assessment data recorded yet</h2>
+                <p className="mt-1 max-w-2xl text-xs leading-relaxed text-slate-500">
+                  Readiness, skill gaps and course demand are all computed from completed assessment
+                  attempts. Once officials complete assessments against trainer-approved questions,
+                  aggregates will appear here.
+                </p>
+              </div>
+            )}
+
+            {!loading && !error && hasAnyData && (
+              <>
+                {/* Key Admin KPIs - all four are direct query results and may be 0 */}
+                <div className="grid grid-cols-2 gap-px border border-rule bg-rule sm:grid-cols-4">
+                  <div className="bg-white px-4 py-4">
+                    <p className="eyebrow">Total officials</p>
+                    <p className="mt-2 font-display text-3xl font-semibold text-ink tnum">
+                      {totalOfficials}
+                    </p>
+                    <p className="mt-1 text-[11px] text-slate-400">Registered OFFICIAL accounts</p>
+                  </div>
+
+                  <div className="bg-white px-4 py-4">
+                    <p className="eyebrow">Assessments completed</p>
+                    <p className="mt-2 font-display text-3xl font-semibold text-ink tnum">
+                      {completedCount}
+                    </p>
+                    <p className="mt-1 text-[11px] text-slate-400">
                       {participationRate !== null
                         ? `${participationRate}% participation rate`
                         : 'Participation rate unavailable'}
-                    </div>
+                    </p>
                   </div>
-                  <div className="w-12 h-12 bg-blue-50 text-blue-600 rounded-2xl flex items-center justify-center">
-                    <Award className="w-6 h-6" aria-hidden="true" />
-                  </div>
-                </div>
 
-                <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-between">
-                  <div>
-                    <div className="text-xs text-slate-500 font-medium">Average Competency</div>
-                    <div className="text-2xl font-extrabold text-emerald-600 mt-1">
-                      {completedCount > 0 ? `${avgCompetency}%` : '--'}
-                    </div>
-                    <div className="text-[10px] text-slate-400 font-semibold mt-1">
+                  <div className="bg-white px-4 py-4">
+                    <p className="eyebrow">Average competency</p>
+                    <p
+                      className={`mt-2 font-display text-3xl font-semibold tnum ${
+                        completedCount > 0 ? bandInk(avgCompetency) : 'text-ink'
+                      }`}
+                    >
+                      {completedCount > 0 ? `${avgCompetency}%` : '—'}
+                    </p>
+                    <p className="mt-1 text-[11px] text-slate-400">
                       {completedCount > 0
                         ? `Mean of ${completedCount} recorded attempt(s)`
                         : 'No attempts recorded'}
-                    </div>
+                    </p>
                   </div>
-                  <div className="w-12 h-12 bg-emerald-50 text-emerald-600 rounded-2xl flex items-center justify-center">
-                    <TrendingUp className="w-6 h-6" aria-hidden="true" />
-                  </div>
-                </div>
 
-                <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-between">
-                  <div>
-                    <div className="text-xs text-slate-500 font-medium">Critical Skill Gaps</div>
-                    <div className="text-2xl font-extrabold text-rose-600 mt-1">{criticalGaps}</div>
-                    <div className="text-[10px] text-slate-400 font-semibold mt-1">
+                  <div className="bg-white px-4 py-4">
+                    <p className="eyebrow">Critical skill gaps</p>
+                    <p
+                      className={`mt-2 font-display text-3xl font-semibold tnum ${
+                        criticalGaps > 0 ? 'text-gap-700' : 'text-ink'
+                      }`}
+                    >
+                      {criticalGaps}
+                    </p>
+                    <p className="mt-1 text-[11px] text-slate-400">
                       Competency results flagged critical
-                    </div>
-                  </div>
-                  <div className="w-12 h-12 bg-rose-50 text-rose-600 rounded-2xl flex items-center justify-center">
-                    <AlertTriangle className="w-6 h-6" aria-hidden="true" />
+                    </p>
                   </div>
                 </div>
-              </div>
 
-              {/* Domain readiness and period-over-period movement */}
-              <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-4">
-                <div>
-                  <h2 className="text-sm font-bold text-slate-800">Domain Readiness & 7-Day Movement</h2>
-                  <p className="text-xs text-slate-500 mt-0.5">
-                    Average competency score per domain, with the last 7 days compared against the 7
-                    days before. This is a comparison of two past windows, not a forecast.
-                  </p>
-                </div>
-
+                {/* Domain readiness and period-over-period movement */}
                 {domainData.length === 0 ? (
-                  <p className="text-xs text-slate-500 bg-slate-50 border border-slate-200 rounded-xl p-4">
+                  <div className="border-l-2 border-rule-strong bg-paper-sunken px-4 py-3 text-xs leading-relaxed text-slate-500">
                     No competency results have been recorded, so no domain readiness can be computed
                     yet.
-                  </p>
+                  </div>
                 ) : (
-                  <>
-                    <div className="grid grid-cols-1 sm:grid-cols-4 gap-3 pt-2">
-                      {domainData.map((d) => (
-                        <div
-                          key={d.domain}
-                          className="p-3 bg-slate-50 rounded-xl border border-slate-200 text-xs"
-                        >
-                          <div className="text-[11px] text-slate-500 font-medium truncate" title={d.domain}>
-                            {d.domain}
-                          </div>
-                          <div className="flex items-center justify-between mt-1 gap-2">
-                            <span className="font-extrabold text-slate-900 text-sm">{d.readiness}%</span>
-                            <TrendBadge trend={d.trend} />
-                          </div>
-                        </div>
-                      ))}
-                    </div>
+                  <div className="space-y-8">
+                    <figure className="m-0">
+                      <figcaption className="mb-3">
+                        <p className="eyebrow">Domain readiness &amp; 7-day movement</p>
+                        <p className="mt-1.5 max-w-2xl text-xs leading-relaxed text-slate-500">
+                          Average competency score per domain, with the last 7 days compared against
+                          the 7 days before. This is a comparison of two past windows, not a
+                          forecast.
+                        </p>
+                      </figcaption>
+                      <div className="overflow-x-auto border border-rule bg-white">
+                        <table className="table-release min-w-[36rem]">
+                          <thead>
+                            <tr>
+                              <th scope="col">Domain</th>
+                              <th scope="col" className="num">Readiness</th>
+                              <th scope="col">7-day movement</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {domainData.map((d) => (
+                              <tr key={d.domain}>
+                                <th scope="row" className="text-left align-baseline font-normal text-ink">
+                                  {d.domain}
+                                </th>
+                                <td className={`num font-medium ${bandInk(d.readiness)}`}>
+                                  {d.readiness}%
+                                </td>
+                                <td>
+                                  <TrendBadge trend={d.trend} />
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </figure>
 
-                    <div className="h-64 w-full pt-2">
-                      <ResponsiveContainer width="100%" height="100%">
-                        <BarChart data={domainData} margin={{ top: 10, right: 20, left: 0, bottom: 0 }}>
-                          <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
-                          <XAxis dataKey="domain" tick={{ fontSize: 10 }} />
-                          <YAxis domain={[0, 100]} tick={{ fontSize: 10 }} />
-                          <Tooltip />
-                          <Bar
-                            dataKey="readiness"
-                            name="Readiness Index (%)"
-                            fill="#1d4ed8"
-                            radius={[6, 6, 0, 0]}
-                            barSize={36}
-                          />
-                        </BarChart>
-                      </ResponsiveContainer>
-                    </div>
-                  </>
+                    <figure className="m-0">
+                      <figcaption className="mb-3">
+                        <p className="eyebrow">Readiness index by domain</p>
+                        <p className="mt-1.5 max-w-2xl text-xs leading-relaxed text-slate-500">
+                          The same figures as the table above, plotted on a 0 to 100 scale.
+                        </p>
+                      </figcaption>
+                      <div className="border border-rule bg-white p-4">
+                        <div className="h-64 w-full">
+                          <ResponsiveContainer width="100%" height="100%">
+                            <BarChart
+                              data={domainData}
+                              margin={{ top: 8, right: 16, left: 0, bottom: 0 }}
+                            >
+                              <CartesianGrid vertical={false} stroke={INK_RULE} />
+                              <XAxis
+                                dataKey="domain"
+                                tick={{ fontSize: 10, fill: INK_SLATE }}
+                                stroke={INK_RULE}
+                              />
+                              <YAxis
+                                domain={[0, 100]}
+                                tick={{ fontSize: 10, fill: INK_SLATE }}
+                                stroke={INK_RULE}
+                              />
+                              <Tooltip
+                                contentStyle={{
+                                  border: `1px solid ${INK_RULE}`,
+                                  borderRadius: 2,
+                                  boxShadow: 'none',
+                                  fontSize: 12,
+                                }}
+                              />
+                              <Bar
+                                dataKey="readiness"
+                                name="Readiness Index (%)"
+                                fill={INK_NAVY}
+                                barSize={28}
+                                isAnimationActive={false}
+                              />
+                            </BarChart>
+                          </ResponsiveContainer>
+                        </div>
+                      </div>
+                    </figure>
+                  </div>
                 )}
-              </div>
 
-              {/* Top gaps and course demand, each honest about being empty */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-3">
-                  <h2 className="text-sm font-bold text-slate-800">Top Department Skill Gaps</h2>
-                  {topGaps.length === 0 ? (
-                    <p className="text-xs text-slate-500 bg-slate-50 border border-slate-200 rounded-xl p-4">
-                      No competency has been flagged as a critical gap yet.
-                    </p>
-                  ) : (
-                    <div className="space-y-2.5">
-                      {topGaps.map((g, idx) => (
-                        <div
-                          key={`${g.competency}-${idx}`}
-                          className="flex items-center justify-between gap-3 p-3 bg-rose-50/50 rounded-xl border border-rose-100 text-xs"
-                        >
-                          <span className="font-bold text-slate-800">{g.competency}</span>
-                          <span className="font-bold text-rose-700 font-mono whitespace-nowrap">
-                            {g.officials_affected} Officials
-                          </span>
-                        </div>
-                      ))}
-                    </div>
-                  )}
+                {/* Top gaps and course demand, each honest about being empty */}
+                <div className="grid grid-cols-1 gap-8 lg:grid-cols-2">
+                  <figure className="m-0">
+                    <figcaption className="mb-3">
+                      <p className="eyebrow">Top department skill gaps</p>
+                      <p className="mt-1.5 text-xs leading-relaxed text-slate-500">
+                        Competencies flagged as critical, as returned in top_gaps.
+                      </p>
+                    </figcaption>
+                    {topGaps.length === 0 ? (
+                      <div className="border-l-2 border-rule-strong bg-paper-sunken px-4 py-3 text-xs leading-relaxed text-slate-500">
+                        No competency has been flagged as a critical gap yet.
+                      </div>
+                    ) : (
+                      <div className="overflow-x-auto border border-rule bg-white">
+                        <table className="table-release min-w-[24rem]">
+                          <thead>
+                            <tr>
+                              <th scope="col">Competency</th>
+                              <th scope="col" className="num">Gap</th>
+                              <th scope="col" className="num">Officials affected</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {topGaps.map((g, idx) => (
+                              <tr key={`${g.competency}-${idx}`}>
+                                <th scope="row" className="text-left align-baseline font-normal text-ink">
+                                  {g.competency}
+                                </th>
+                                <td className="num font-medium text-gap-700">
+                                  {typeof g.gap_percentage === 'number' ? `${g.gap_percentage}%` : '—'}
+                                </td>
+                                <td className="num">{g.officials_affected}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
+                  </figure>
+
+                  <figure className="m-0">
+                    <figcaption className="mb-3">
+                      <p className="eyebrow">Capacity building course demand</p>
+                      <p className="mt-1.5 text-xs leading-relaxed text-slate-500">
+                        Officials enrolled per course, counted from assigned learning paths.
+                      </p>
+                    </figcaption>
+                    {trainingDemand.length === 0 ? (
+                      <div className="border-l-2 border-rule-strong bg-paper-sunken px-4 py-3 text-xs leading-relaxed text-slate-500">
+                        No learning paths have been assigned yet, so there is no course demand to
+                        report.
+                      </div>
+                    ) : (
+                      <div className="overflow-x-auto border border-rule bg-white">
+                        <table className="table-release min-w-[24rem]">
+                          <thead>
+                            <tr>
+                              <th scope="col">Course</th>
+                              <th scope="col">Provider</th>
+                              <th scope="col" className="num">Enrolled</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {trainingDemand.map((d, idx) => (
+                              <tr key={`${d.course_title}-${idx}`}>
+                                <th scope="row" className="text-left align-baseline font-normal text-ink">
+                                  {d.course_title}
+                                </th>
+                                <td className="text-slate-500">{d.provider || '—'}</td>
+                                <td className="num">{d.enrolled_officials}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
+                  </figure>
                 </div>
+              </>
+            )}
 
-                <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-3">
-                  <h2 className="text-sm font-bold text-slate-800">Capacity Building Course Demand</h2>
-                  {trainingDemand.length === 0 ? (
-                    <p className="text-xs text-slate-500 bg-slate-50 border border-slate-200 rounded-xl p-4">
-                      No learning paths have been assigned yet, so there is no course demand to report.
-                    </p>
-                  ) : (
-                    <div className="space-y-2.5">
-                      {trainingDemand.map((d, idx) => (
-                        <div
-                          key={`${d.course_title}-${idx}`}
-                          className="flex items-center justify-between gap-3 p-3 bg-blue-50/50 rounded-xl border border-blue-100 text-xs"
-                        >
-                          <div>
-                            <div className="font-bold text-slate-800">{d.course_title}</div>
-                            {d.provider && (
-                              <div className="text-[10px] text-blue-700 font-semibold">{d.provider}</div>
-                            )}
-                          </div>
-                          <span className="font-bold text-blue-800 font-mono whitespace-nowrap">
-                            {d.enrolled_officials} Enrolled
-                          </span>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              </div>
-
-
-            </>
-          )}
-
+          </div>
         </main>
       </div>
     </div>
   );
 }
+
+/* Status chip: one shape for every movement label, band colours carry the meaning. */
+const CHIP = 'inline-block whitespace-nowrap border px-2 py-0.5 font-mono text-[10px] uppercase tracking-eyebrow';
 
 /**
  * Movement indicator for a single domain.
@@ -368,33 +423,20 @@ export default function AdminAnalyticsPage() {
  */
 function TrendBadge({ trend }: { trend: string }) {
   if (trend === 'trending_up') {
-    return (
-      <span className="flex items-center gap-1 bg-emerald-100 text-emerald-800 border border-emerald-300 px-2 py-0.5 rounded text-[10px] font-bold whitespace-nowrap">
-        <TrendingUp className="w-3 h-3 text-emerald-600" aria-hidden="true" /> Trending Up
-      </span>
-    );
+    return <span className={`${CHIP} border-strong-200 bg-strong-50 text-strong-700`}>Trending up</span>;
   }
   if (trend === 'trending_down') {
-    return (
-      <span className="flex items-center gap-1 bg-rose-100 text-rose-800 border border-rose-300 px-2 py-0.5 rounded text-[10px] font-bold whitespace-nowrap">
-        <TrendingDown className="w-3 h-3 text-rose-600" aria-hidden="true" /> Action Needed
-      </span>
-    );
+    return <span className={`${CHIP} border-gap-200 bg-gap-50 text-gap-700`}>Action needed</span>;
   }
   if (trend === 'stable') {
-    return (
-      <span className="flex items-center gap-1 bg-blue-50 text-blue-700 border border-blue-200 px-2 py-0.5 rounded text-[10px] font-bold whitespace-nowrap">
-        <Minus className="w-3 h-3 text-blue-500" aria-hidden="true" /> Stable
-      </span>
-    );
+    return <span className={`${CHIP} border-navy-200 bg-navy-50 text-navy-700`}>Stable</span>;
   }
   return (
     <span
       title="Two comparable 7-day windows of attempts are needed before a direction can be shown."
-      className="flex items-center gap-1 bg-slate-100 text-slate-600 border border-slate-300 px-2 py-0.5 rounded text-[10px] font-bold whitespace-nowrap"
+      className={`${CHIP} border-rule bg-paper-sunken text-slate-500`}
     >
-      <HelpCircle className="w-3 h-3 text-slate-500" aria-hidden="true" /> Not enough data
+      Not enough data
     </span>
   );
 }
-

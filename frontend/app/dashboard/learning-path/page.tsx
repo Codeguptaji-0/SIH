@@ -7,10 +7,7 @@ import { Sidebar } from '@/components/Sidebar';
 import {
   AlertTriangle,
   ArrowRight,
-  BookOpen,
-  CheckCircle,
   Clock,
-  ExternalLink,
   Loader2,
   RefreshCw,
 } from 'lucide-react';
@@ -160,100 +157,118 @@ export default function LearningPathPage() {
   const unmappedCount = items.filter(isUnmapped).length;
 
   return (
-    <div className="min-h-screen bg-slate-50 flex flex-col">
-      <Navbar currentRole="OFFICIAL" />
+    <div className="flex min-h-screen flex-col bg-paper">
+      <Navbar />
 
       <div className="flex flex-1">
         <Sidebar role="OFFICIAL" />
 
-        <main className="flex-1 p-6 sm:p-8 max-w-7xl mx-auto space-y-6">
-          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-            <div>
-              <h1 className="text-2xl font-extrabold text-slate-900">Your Personalised Learning Path</h1>
-              <p className="text-xs text-slate-500 mt-1">
-                Built from the competency gaps in your latest assessment, matched against the
-                iGOT Karmayogi / NSSTA TPAC catalogue entries available to this instance
+        <main className="mx-auto w-full max-w-5xl flex-1 px-5 py-8 md:px-8">
+          <header className="flex flex-col justify-between gap-4 border-b-2 border-ink pb-6 md:flex-row md:items-end">
+            <div className="min-w-0">
+              <p className="eyebrow">Recommended training</p>
+              <h1 className="mt-2 font-display text-2xl font-semibold tracking-tightest text-ink">
+                Your learning path
+              </h1>
+              <p className="mt-1.5 max-w-xl text-xs leading-relaxed text-slate-500">
+                Ordered by the competency gaps in your latest assessment and matched against the
+                iGOT Karmayogi and NSSTA TPAC catalogue entries available to this instance.
               </p>
             </div>
-            <div className="flex items-center gap-3">
+            <div className="flex shrink-0 flex-col items-start gap-2 sm:items-end">
               <button
                 onClick={load}
                 disabled={loading}
-                className="flex items-center gap-1.5 text-xs font-bold text-slate-600 hover:text-slate-900 bg-white border border-slate-200 px-3 py-2 rounded-xl shadow-sm disabled:opacity-50"
+                className="inline-flex h-9 items-center gap-1.5 border border-rule-strong bg-white px-3 text-xs font-medium text-ink transition-colors hover:border-ink disabled:opacity-50"
               >
-                <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} /> Refresh
+                <RefreshCw className={`h-3.5 w-3.5 ${loading ? 'animate-spin' : ''}`} aria-hidden="true" />
+                Refresh
               </button>
-              <div className="text-xs bg-blue-50 text-blue-700 px-3 py-1.5 rounded-xl border border-blue-200 font-mono font-bold">
-                Simulated iGOT Ecosystem Integration
-              </div>
+              <p className="font-mono text-[10px] uppercase tracking-eyebrow text-slate-400">
+                iGOT integration simulated
+              </p>
             </div>
-          </div>
+          </header>
+
+          <div className="mt-8 space-y-8">
 
           {loading && (
-            <div className="bg-white p-8 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-center gap-3 text-sm text-slate-500">
-              <Loader2 className="w-4 h-4 animate-spin" /> Loading your learning path...
+            <div className="flex items-center justify-center gap-3 border border-rule bg-white px-5 py-10 text-xs text-slate-500">
+              <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> Loading your learning
+              path…
             </div>
           )}
 
           {!loading && error && (
-            <div className="bg-rose-50 border border-rose-200 p-5 rounded-2xl space-y-1">
-              <div className="flex items-center gap-2 text-sm font-bold text-rose-800">
-                <AlertTriangle className="w-4 h-4" /> Could not load your learning path
+            <div role="alert" className="flex items-start gap-3 border-l-2 border-gap-600 bg-gap-50 px-4 py-3.5">
+              <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-gap-600" aria-hidden="true" />
+              <div className="min-w-0">
+                <h2 className="text-sm font-medium text-ink">Could not load your learning path</h2>
+                <p className="mt-1 break-words font-mono text-[11px] text-gap-700">{error}</p>
+                <p className="mt-1.5 text-xs text-gap-700">
+                  No courses are listed, because none were received from the server.
+                </p>
               </div>
-              <p className="text-xs text-rose-700 font-mono break-words">{error}</p>
-              <p className="text-xs text-rose-700">
-                No courses are listed, because none were received from the server.
-              </p>
             </div>
           )}
 
           {!loading && !error && !hasItems && (
-            <div className="bg-white p-8 rounded-2xl border border-slate-200 shadow-sm text-center space-y-3">
-              <div className="w-12 h-12 mx-auto bg-slate-100 text-slate-500 rounded-2xl flex items-center justify-center">
-                <BookOpen className="w-6 h-6" />
-              </div>
-              <h3 className="text-sm font-bold text-slate-800">No learning path assigned yet</h3>
-              <p className="text-xs text-slate-500 max-w-md mx-auto">
+            <div className="border border-rule bg-white px-5 py-6">
+              <h2 className="text-sm font-medium text-ink">No learning path assigned yet</h2>
+              <p className="mt-1 max-w-xl text-xs leading-relaxed text-slate-500">
                 A path is generated from the gaps found in a scored assessment. Complete an
-                assessment first and your recommended courses will be listed here.
+                assessment first and the recommended courses appear here, worst gap first.
               </p>
               <Link
                 href="/dashboard/assessment"
-                className="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold px-5 py-2.5 rounded-xl shadow transition-all"
+                className="mt-4 inline-flex h-11 items-center gap-2 border border-navy-600 bg-navy-600 px-5 text-sm font-medium text-paper transition-colors hover:bg-navy-700"
               >
-                Go to Assessment Center <ArrowRight className="w-4 h-4" />
+                Go to assessment centre <ArrowRight className="h-4 w-4" aria-hidden="true" />
               </Link>
             </div>
           )}
 
           {!loading && !error && hasItems && (
-            <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-2">
-              <div className="flex items-center justify-between text-xs">
-                <span className="font-bold text-slate-800">
-                  {completedCount} of {totalCount} items completed
-                </span>
-                <span className="font-extrabold text-blue-600">{percent}%</span>
+            <section className="border border-rule bg-white px-5 py-5">
+              <div className="flex flex-wrap items-baseline justify-between gap-3">
+                <div>
+                  <p className="eyebrow">Completion</p>
+                  <p className="mt-1.5 text-sm text-ink tnum">
+                    {completedCount} of {totalCount} item{totalCount === 1 ? '' : 's'} completed
+                  </p>
+                </div>
+                <p className="font-display text-2xl font-semibold text-ink tnum">
+                  {percent !== null ? `${percent}%` : '—'}
+                </p>
               </div>
-              <div className="h-2.5 w-full bg-slate-100 rounded-full overflow-hidden">
+              <div className="mt-3 h-[6px] w-full bg-paper-sunken" aria-hidden="true">
                 <div
-                  className="h-full bg-blue-600 rounded-full transition-all"
-                  style={{ width: `${percent || 0}%` }}
+                  className="h-full bg-navy-600"
+                  style={{ width: `${Math.max(0, Math.min(100, percent || 0))}%` }}
                 />
               </div>
               {progress?.message ? (
-                <p className="text-[11px] text-slate-500">{progress.message}</p>
+                <p className="mt-2.5 text-[11px] text-slate-500">{progress.message}</p>
               ) : null}
               {unmappedCount > 0 ? (
-                <p className="text-[11px] text-amber-700">
+                <p className="mt-2.5 text-[11px] text-watch-700">
                   {unmappedCount} identified gap{unmappedCount === 1 ? '' : 's'} currently{' '}
                   {unmappedCount === 1 ? 'has' : 'have'} no mapped catalogue course.
                 </p>
               ) : null}
-            </div>
+            </section>
           )}
 
           {!loading && !error && hasItems && (
-            <div className="space-y-4 relative">
+            <section>
+              <div className="border-b border-ink pb-2.5">
+                <p className="eyebrow">Ordered pathway</p>
+                <p className="mt-1.5 max-w-2xl text-xs leading-relaxed text-slate-500">
+                  Sequence follows gap severity. Items with no catalogue course mapped are still
+                  listed, because the gap is real even when the course is not there yet.
+                </p>
+              </div>
+              <ol className="m-0 mt-1 list-none p-0">
               {items.map((item, idx) => {
                 const unmapped = isUnmapped(item);
                 const isDone = item.status === 'COMPLETED';
@@ -261,107 +276,91 @@ export default function LearningPathPage() {
                 const rowError = item.id ? itemErrors[item.id] : null;
 
                 return (
-                  <div
+                  <li
                     key={item.id || idx}
-                    className={`p-6 rounded-2xl border transition-all shadow-sm ${
+                    className={`border-b border-rule border-l-2 py-4 pl-4 pr-1 ${
                       unmapped
-                        ? 'bg-slate-100/70 border-dashed border-slate-300'
+                        ? 'border-l-rule-strong bg-paper-sunken'
                         : isDone
-                        ? 'bg-emerald-50/20 border-emerald-200'
+                        ? 'border-l-strong-600'
                         : isInProgress
-                        ? 'bg-white border-blue-400 ring-2 ring-blue-100'
-                        : 'bg-white border-slate-200'
+                        ? 'border-l-navy-600'
+                        : 'border-l-transparent'
                     }`}
                   >
-                    <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-                      <div className="flex items-start space-x-4">
-                        <div
-                          className={`w-10 h-10 rounded-2xl flex items-center justify-center font-bold text-sm flex-shrink-0 ${
-                            unmapped
-                              ? 'bg-slate-200 text-slate-500'
-                              : isDone
-                              ? 'bg-emerald-600 text-white'
-                              : isInProgress
-                              ? 'bg-blue-600 text-white shadow-md'
-                              : 'bg-slate-100 text-slate-500'
-                          }`}
-                        >
-                          {isDone ? <CheckCircle className="w-5 h-5" /> : idx + 1}
-                        </div>
+                    <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-baseline">
+                      <div className="flex min-w-0 items-baseline gap-3">
+                        <span className="font-mono text-[11px] text-slate-400 tnum">
+                          {String(idx + 1).padStart(2, '0')}
+                        </span>
 
-                        <div className="space-y-1">
-                          <div className="flex items-center flex-wrap gap-2">
+                        <div className="min-w-0">
+                          <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1">
                             {item.priority ? (
                               <span
-                                className={`text-[10px] font-bold px-2.5 py-0.5 rounded-full font-mono ${
+                                className={`border px-2 py-0.5 font-mono text-[10px] uppercase tracking-eyebrow ${
                                   item.priority === 'High'
-                                    ? 'bg-rose-100 text-rose-800 border border-rose-200'
-                                    : 'bg-amber-100 text-amber-800 border border-amber-200'
+                                    ? 'border-gap-200 bg-gap-50 text-gap-700'
+                                    : 'border-watch-200 bg-watch-50 text-watch-700'
                                 }`}
                               >
-                                {item.priority} Priority
+                                {item.priority} priority
                               </span>
                             ) : null}
-                            {item.provider ? (
-                              <span className="text-[11px] font-bold text-blue-700">{item.provider}</span>
-                            ) : (
-                              <span className="text-[11px] font-bold text-slate-500 font-mono">
-                                No provider
-                              </span>
-                            )}
+                            <span className="eyebrow">{item.provider || 'No provider'}</span>
                           </div>
 
                           <h3
-                            className={`text-sm font-bold ${
-                              unmapped ? 'text-slate-600' : 'text-slate-900'
+                            className={`mt-1.5 text-sm font-medium ${
+                              unmapped ? 'text-slate-500' : 'text-ink'
                             }`}
                           >
                             {item.course_title || 'Untitled item'}
                           </h3>
 
-                          <p className="text-xs text-slate-500">
-                            Competency:{' '}
-                            <span className="font-semibold text-slate-700">
-                              {item.competency_name || 'Unspecified'}
+                          <p className="mt-0.5 flex flex-wrap items-center gap-x-3 text-[11px] text-slate-500">
+                            <span>
+                              Competency:{' '}
+                              <span className="text-ink">{item.competency_name || 'Unspecified'}</span>
                             </span>
                             {item.estimated_duration ? (
-                              <span className="inline-flex items-center gap-1 ml-2">
-                                <Clock className="w-3 h-3" /> {item.estimated_duration}
+                              <span className="inline-flex items-center gap-1">
+                                <Clock className="h-3 w-3" aria-hidden="true" />{' '}
+                                {item.estimated_duration}
                               </span>
                             ) : null}
                           </p>
 
                           {unmapped ? (
-                            <p className="text-[11px] font-semibold text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-2.5 py-1 inline-block">
-                              No mapped course yet - gap recorded
+                            <p className="mt-1.5 text-[11px] text-watch-700">
+                              No mapped course yet — the gap is recorded and waiting on the catalogue.
                             </p>
                           ) : null}
                         </div>
                       </div>
 
-                      <div className="flex items-center space-x-3 flex-shrink-0">
+                      <div className="shrink-0">
                         {unmapped ? (
-                          <span className="text-xs font-bold text-slate-500 bg-slate-200/70 px-3 py-1.5 rounded-xl border border-slate-300">
+                          <span className="border border-rule bg-white px-2.5 py-1 font-mono text-[10px] uppercase tracking-eyebrow text-slate-500">
                             Awaiting catalogue mapping
                           </span>
                         ) : isDone ? (
-                          <span className="text-xs font-bold text-emerald-700 bg-emerald-100 px-3 py-1.5 rounded-xl border border-emerald-300">
+                          <span className="border border-strong-200 bg-strong-50 px-2.5 py-1 font-mono text-[10px] uppercase tracking-eyebrow text-strong-700">
                             Completed
                           </span>
                         ) : (
                           <button
                             onClick={() => handleComplete(item.id)}
                             disabled={pendingItem === item.id || !item.id}
-                            className="bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white text-xs font-bold px-4 py-2 rounded-xl shadow transition-all flex items-center gap-1.5"
+                            className="inline-flex h-9 items-center gap-1.5 border border-navy-600 bg-navy-600 px-4 text-xs font-medium text-paper transition-colors hover:bg-navy-700 disabled:opacity-50"
                           >
                             {pendingItem === item.id ? (
                               <>
-                                <Loader2 className="w-3.5 h-3.5 animate-spin" /> Saving
+                                <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden="true" />{' '}
+                                Saving
                               </>
                             ) : (
-                              <>
-                                Mark Complete <ExternalLink className="w-3.5 h-3.5" />
-                              </>
+                              'Mark complete'
                             )}
                           </button>
                         )}
@@ -369,29 +368,35 @@ export default function LearningPathPage() {
                     </div>
 
                     {rowError ? (
-                      <div className="mt-3 bg-rose-50 border border-rose-200 rounded-xl p-3 space-y-0.5">
-                        <div className="flex items-center gap-1.5 text-xs font-bold text-rose-800">
-                          <AlertTriangle className="w-3.5 h-3.5" /> Could not mark this item complete
+                      <div
+                        role="alert"
+                        className="mt-3 border-l-2 border-gap-600 bg-gap-50 px-3.5 py-2.5"
+                      >
+                        <div className="flex items-center gap-1.5 text-xs font-medium text-ink">
+                          <AlertTriangle className="h-3.5 w-3.5 text-gap-600" aria-hidden="true" />{' '}
+                          Could not mark this item complete
                         </div>
-                        <p className="text-[11px] text-rose-700 font-mono break-words">{rowError}</p>
-                        <p className="text-[11px] text-rose-700">
-                          The item was left unchanged.
+                        <p className="mt-1 break-words font-mono text-[11px] text-gap-700">
+                          {rowError}
                         </p>
+                        <p className="mt-1 text-[11px] text-gap-700">The item was left unchanged.</p>
                       </div>
                     ) : null}
-                  </div>
+                  </li>
                 );
               })}
-            </div>
+              </ol>
+            </section>
           )}
 
-          <div className="text-center pt-4">
+          <div className="border-t border-rule pt-4">
             <Link
               href="/dashboard/progress"
-              className="inline-flex items-center gap-2 text-xs font-bold text-blue-600 hover:text-blue-700"
+              className="inline-flex items-center gap-1.5 text-xs font-medium text-navy-600 underline decoration-navy-200 underline-offset-4 hover:decoration-navy-600"
             >
-              Track Competency Score Progress <ArrowRight className="w-4 h-4" />
+              Track competency score progress <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
             </Link>
+          </div>
           </div>
         </main>
       </div>

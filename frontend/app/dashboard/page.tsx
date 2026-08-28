@@ -6,7 +6,7 @@ import { Navbar } from '@/components/Navbar';
 import { Sidebar } from '@/components/Sidebar';
 import { CompetencyRadar } from '@/components/CompetencyRadar';
 import { VirtualAssistantWidget } from '@/components/VirtualAssistantWidget';
-import { Award, AlertTriangle, CheckCircle, ArrowRight, BookOpen, Clock, RefreshCw } from 'lucide-react';
+import { AlertTriangle, ArrowRight, Clock } from 'lucide-react';
 
 import { useLanguage } from '../context/LanguageContext';
 import { ApiError, apiJson } from '@/app/lib/api';
@@ -140,35 +140,41 @@ export default function OfficialDashboard() {
   const hasScores = competencies.length > 0;
 
   return (
-    <div className="min-h-screen bg-slate-50 flex flex-col">
-      <Navbar currentRole="OFFICIAL" userName={fullName || undefined} />
+    <div className="flex min-h-screen flex-col bg-paper">
+      {/* currentRole is no longer forced to OFFICIAL - the bar reports the role
+          on the session, so it cannot claim one that is not there. */}
+      <Navbar userName={fullName || undefined} />
 
       <div className="flex flex-1">
         <Sidebar role="OFFICIAL" />
 
-        <main className="flex-1 p-6 sm:p-8 max-w-7xl mx-auto space-y-6">
-          {/* Header Banner */}
-          <div className="bg-gradient-to-r from-slate-900 via-blue-950 to-slate-900 text-white p-6 rounded-3xl shadow-md border border-slate-800 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-            <div>
-              <div className="text-xs font-mono text-blue-400 font-bold uppercase tracking-wider mb-1">
-                {t('overviewHeader')}
-              </div>
+        <main className="mx-auto w-full max-w-6xl flex-1 px-5 py-8 md:px-8">
+          {/* Release header, ruled rather than a gradient banner. */}
+          <header className="flex flex-col justify-between gap-5 border-b-2 border-ink pb-6 md:flex-row md:items-end">
+            <div className="min-w-0">
+              <p className="eyebrow">{t('overviewHeader')}</p>
               {loading ? (
                 <>
-                  <div className="h-8 w-64 bg-slate-700/60 rounded animate-pulse" />
-                  <div className="h-3 w-80 bg-slate-700/40 rounded animate-pulse mt-2" />
+                  <div className="mt-2 h-8 w-64 animate-pulse bg-paper-sunken" />
+                  <div className="mt-2 h-3 w-80 animate-pulse bg-paper-sunken" />
                 </>
               ) : profileError && !isMissing(profileError) ? (
                 <>
-                  <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight">{t('welcomeUser')}</h1>
-                  <p className="text-xs text-rose-300 mt-1">Profile could not be loaded: {profileError.message}</p>
+                  <h1 className="mt-2 font-display text-2xl font-semibold tracking-tightest text-ink sm:text-3xl">
+                    {t('welcomeUser')}
+                  </h1>
+                  <p className="mt-1.5 text-xs text-gap-700">
+                    Profile could not be loaded: {profileError.message}
+                  </p>
                 </>
               ) : isMissing(profileError) ? (
                 <>
-                  <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight">{t('welcomeUser')}</h1>
-                  <p className="text-xs text-slate-300 mt-1">
+                  <h1 className="mt-2 font-display text-2xl font-semibold tracking-tightest text-ink sm:text-3xl">
+                    {t('welcomeUser')}
+                  </h1>
+                  <p className="mt-1.5 max-w-xl text-xs leading-relaxed text-slate-500">
                     No profile data recorded yet.{' '}
-                    <Link href="/dashboard/profile" className="text-blue-300 underline">
+                    <Link href="/dashboard/profile" className="text-navy-600 underline underline-offset-2">
                       Complete your profile
                     </Link>{' '}
                     so recommendations can be targeted to your role.
@@ -176,16 +182,24 @@ export default function OfficialDashboard() {
                 </>
               ) : (
                 <>
-                  <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight">
-                    {t('welcomeUser')}{fullName ? `, ${fullName}` : ''}
+                  <h1 className="mt-2 font-display text-2xl font-semibold tracking-tightest text-ink sm:text-3xl">
+                    {t('welcomeUser')}
+                    {fullName ? `, ${fullName}` : ''}
                   </h1>
-                  <p className="text-xs text-slate-300 mt-1">
-                    {t('jobRole')}: <span className="font-semibold text-white">{designation || 'Not set'}</span> • Department: <span className="font-semibold text-white">{department || 'Not set'}</span>
-                  </p>
+                  <dl className="mt-2 flex flex-wrap gap-x-6 gap-y-1 text-xs">
+                    <div className="flex gap-1.5">
+                      <dt className="text-slate-400">{t('jobRole')}</dt>
+                      <dd className="font-medium text-ink">{designation || 'Not set'}</dd>
+                    </div>
+                    <div className="flex gap-1.5">
+                      <dt className="text-slate-400">Department</dt>
+                      <dd className="font-medium text-ink">{department || 'Not set'}</dd>
+                    </div>
+                  </dl>
                   {profileIncomplete && (
-                    <p className="text-[11px] text-amber-300 mt-1">
+                    <p className="mt-1.5 text-[11px] text-watch-700">
                       Some profile fields are empty.{' '}
-                      <Link href="/dashboard/profile" className="underline">
+                      <Link href="/dashboard/profile" className="underline underline-offset-2">
                         Complete your profile
                       </Link>
                       .
@@ -194,100 +208,93 @@ export default function OfficialDashboard() {
                 </>
               )}
             </div>
+            {/*
+             * This used to link to /dashboard/quiz/active-quiz-session-001, a
+             * session id compiled into the page. Opening it asked the backend for
+             * a session that does not exist. It now goes to the assessment page,
+             * which creates a real session before any question is shown.
+             */}
             <Link
-              href="/dashboard/quiz/active-quiz-session-001"
-              className="bg-blue-600 hover:bg-blue-500 text-white font-bold px-6 py-3 rounded-xl shadow-lg shadow-blue-600/30 text-xs flex items-center gap-2 transition-all"
+              href="/dashboard/assessment"
+              className="inline-flex h-11 shrink-0 items-center gap-2 border border-navy-600 bg-navy-600 px-5 text-sm font-medium text-paper transition-colors hover:bg-navy-700"
             >
-              {t('startAssessment')} <ArrowRight className="w-4 h-4" />
+              {t('startAssessment')} <ArrowRight className="h-4 w-4" aria-hidden="true" />
             </Link>
-          </div>
+          </header>
 
           {/* Assessment summary: loading, failed, empty, or real numbers. */}
+          <section className="mt-9">
+            <p className="eyebrow">Assessment summary</p>
+            <div className="mt-3">
           {loading ? (
-            <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
-              {[0, 1, 2, 3].map((i) => (
-                <div key={i} className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm h-[104px] animate-pulse" />
-              ))}
-            </div>
+            <div className="h-[104px] animate-pulse border border-rule bg-paper-sunken" />
           ) : competencyError && !isMissing(competencyError) ? (
-            <div role="alert" className="bg-white p-5 rounded-2xl border border-rose-200 shadow-sm flex items-start gap-3">
-              <AlertTriangle className="w-5 h-5 text-rose-600 flex-shrink-0 mt-0.5" />
+            <div
+              role="alert"
+              className="flex items-start gap-3 border-l-2 border-gap-600 bg-gap-50 px-4 py-3.5"
+            >
+              <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-gap-600" aria-hidden="true" />
               <div>
-                <div className="text-sm font-bold text-slate-900">Competency scores unavailable</div>
-                <p className="text-xs text-rose-700 mt-1">{competencyError.message}</p>
+                <div className="text-sm font-medium text-ink">Competency scores unavailable</div>
+                <p className="mt-1 text-xs text-gap-700">{competencyError.message}</p>
               </div>
             </div>
           ) : !hasScores ? (
-            <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm text-center">
-              <div className="text-sm font-bold text-slate-900">No assessment recorded yet</div>
-              <p className="text-xs text-slate-500 mt-1">
+            <div className="border border-rule bg-white px-5 py-6">
+              <div className="text-sm font-medium text-ink">No assessment recorded yet</div>
+              <p className="mt-1 max-w-lg text-xs leading-relaxed text-slate-500">
                 Competency scores and gap analysis appear here once you complete an assessment.
               </p>
             </div>
           ) : (
-          <>
-          <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
-            <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-between">
-              <div>
-                <div className="text-xs text-slate-500 font-medium">Overall Score</div>
-                <div className="text-2xl font-extrabold text-slate-900 mt-1">
-                  {overallScore !== null ? `${overallScore}%` : '—'}
-                </div>
-                <div className="text-[10px] text-emerald-600 font-semibold mt-1">Target: 80% Baseline</div>
+            <>
+              {/*
+               * Four figures, separated by rules rather than boxed in cards. The
+               * icon badges beside each number are gone: a figure set this large
+               * does not need a decorative glyph next to it.
+               */}
+              <div className="grid grid-cols-2 gap-px border border-rule bg-rule sm:grid-cols-4">
+                {[
+                  {
+                    label: 'Overall score',
+                    value: overallScore !== null ? `${overallScore}%` : '—',
+                    note: 'Baseline 80%',
+                    cls: 'text-ink',
+                  },
+                  { label: 'Strong areas', value: strongCount, note: 'Score 80 and above', cls: 'text-strong-700' },
+                  { label: 'Needs improvement', value: improvementCount, note: 'Score 60 to 79', cls: 'text-watch-700' },
+                  { label: 'Critical gaps', value: gapCount, note: 'Score below 60', cls: 'text-gap-700' },
+                ].map((f) => (
+                  <div key={f.label} className="bg-white px-4 py-4">
+                    <p className="eyebrow">{f.label}</p>
+                    <p className={`mt-2 font-display text-3xl font-semibold tnum ${f.cls}`}>{f.value}</p>
+                    <p className="mt-1 text-[11px] text-slate-400">{f.note}</p>
+                  </div>
+                ))}
               </div>
-              <div className="w-12 h-12 bg-blue-50 text-blue-600 rounded-2xl flex items-center justify-center font-bold">
-                <Award className="w-6 h-6" />
-              </div>
-            </div>
 
-            <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-between">
-              <div>
-                <div className="text-xs text-slate-500 font-medium">Strong Areas</div>
-                <div className="text-2xl font-extrabold text-emerald-700 mt-1">{strongCount}</div>
-                <div className="text-[10px] text-slate-400 mt-1">Score ≥ 80%</div>
+              <div className="mt-6">
+                <CompetencyRadar data={competencies} />
               </div>
-              <div className="w-12 h-12 bg-emerald-50 text-emerald-600 rounded-2xl flex items-center justify-center font-bold">
-                <CheckCircle className="w-6 h-6" />
-              </div>
-            </div>
-
-            <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-between">
-              <div>
-                <div className="text-xs text-slate-500 font-medium">Needs Improvement</div>
-                <div className="text-2xl font-extrabold text-amber-600 mt-1">{improvementCount}</div>
-                <div className="text-[10px] text-slate-400 mt-1">Score 60% – 79%</div>
-              </div>
-              <div className="w-12 h-12 bg-amber-50 text-amber-600 rounded-2xl flex items-center justify-center font-bold">
-                <RefreshCw className="w-6 h-6" />
-              </div>
-            </div>
-
-            <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-between">
-              <div>
-                <div className="text-xs text-slate-500 font-medium">Critical Gaps</div>
-                <div className="text-2xl font-extrabold text-rose-600 mt-1">{gapCount}</div>
-                <div className="text-[10px] text-rose-600 font-semibold mt-1">High Priority Training Needed</div>
-              </div>
-              <div className="w-12 h-12 bg-rose-50 text-rose-600 rounded-2xl flex items-center justify-center font-bold">
-                <AlertTriangle className="w-6 h-6" />
-              </div>
-            </div>
-          </div>
-
-          {/* Competency Radar & Charts */}
-          <CompetencyRadar data={competencies} />
-          </>
+            </>
           )}
+            </div>
+          </section>
 
-          {/* Active Learning Path Preview */}
-          <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
-            <div className="flex items-center justify-between mb-4">
+          {/* Active learning path preview. */}
+          <section className="mt-9">
+            <div className="flex items-end justify-between gap-4 border-b border-ink pb-2.5">
               <div>
-                <h3 className="text-sm font-bold text-slate-800">Your Recommended Learning Pathway</h3>
-                <p className="text-xs text-slate-500">Prioritized courses from iGOT Karmayogi & NSSTA TPAC catalogs</p>
+                <p className="eyebrow">Recommended learning path</p>
+                <p className="mt-1.5 text-xs text-slate-500">
+                  Ordered by gap severity, drawn from iGOT Karmayogi and NSSTA TPAC
+                </p>
               </div>
-              <Link href="/dashboard/learning-path" className="text-xs font-bold text-blue-600 hover:text-blue-700 flex items-center gap-1">
-                View Full Path <ArrowRight className="w-3.5 h-3.5" />
+              <Link
+                href="/dashboard/learning-path"
+                className="flex shrink-0 items-center gap-1 text-xs font-medium text-navy-600 underline decoration-navy-200 underline-offset-4 hover:decoration-navy-600"
+              >
+                Full path <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
               </Link>
             </div>
 
@@ -295,55 +302,55 @@ export default function OfficialDashboard() {
                 to render three hardcoded courses, which looked like an assigned
                 pathway even for a user with no assessment history. */}
             {loading ? (
-              <div className="space-y-3">
-                {[0, 1, 2].map((i) => (
-                  <div key={i} className="h-16 bg-slate-100 rounded-xl animate-pulse" />
-                ))}
-              </div>
+              <div className="mt-4 h-24 animate-pulse bg-paper-sunken" />
             ) : pathError ? (
-              <p role="alert" className="text-xs text-rose-700 bg-rose-50 border border-rose-200 rounded-xl p-3.5">
+              <p role="alert" className="mt-4 border-l-2 border-gap-600 bg-gap-50 px-4 py-3 text-xs text-gap-700">
                 Recommendations could not be loaded: {pathError.message}
               </p>
             ) : learningPath.length === 0 ? (
-              <p className="text-xs text-slate-500 bg-slate-50 border border-slate-200 rounded-xl p-3.5">
-                No courses recommended yet. Complete an assessment and a pathway will be generated from
-                your competency gaps.
+              <p className="mt-4 max-w-xl border-l-2 border-rule-strong bg-paper-sunken px-4 py-3 text-xs leading-relaxed text-slate-500">
+                No courses recommended yet. Complete an assessment and a pathway will be generated
+                from your competency gaps.
               </p>
             ) : (
-              <div className="space-y-3">
+              <ol className="m-0 mt-1 list-none p-0">
                 {learningPath.map((item, idx) => (
-                  <div key={item.id || idx} className="flex flex-col sm:flex-row items-start sm:items-center justify-between p-3.5 bg-slate-50 rounded-xl border border-slate-200/80 gap-2">
-                    <div className="flex items-center space-x-3">
-                      <div className="w-8 h-8 rounded-lg bg-blue-100 text-blue-700 flex items-center justify-center font-bold text-xs">
-                        {idx + 1}
-                      </div>
-                      <div>
-                        <h4 className="text-xs font-bold text-slate-800">{item.course_title}</h4>
-                        <div className="flex items-center gap-2 mt-0.5 text-[11px] text-slate-500">
-                          <span className="font-medium text-slate-600">{item.provider || 'Provider not set'}</span>
+                  <li
+                    key={item.id || idx}
+                    className="flex flex-col items-start justify-between gap-2 border-b border-rule py-3.5 sm:flex-row sm:items-center"
+                  >
+                    <div className="flex min-w-0 items-baseline gap-3">
+                      <span className="font-mono text-[11px] text-slate-400 tnum">
+                        {String(idx + 1).padStart(2, '0')}
+                      </span>
+                      <div className="min-w-0">
+                        <h3 className="text-sm font-medium text-ink">{item.course_title}</h3>
+                        <div className="mt-0.5 flex flex-wrap items-center gap-x-3 text-[11px] text-slate-500">
+                          <span>{item.provider || 'Provider not set'}</span>
                           {item.estimated_duration && (
-                            <>
-                              •
-                              <span className="flex items-center gap-1">
-                                <Clock className="w-3 h-3" /> {item.estimated_duration}
-                              </span>
-                            </>
+                            <span className="flex items-center gap-1">
+                              <Clock className="h-3 w-3" aria-hidden="true" /> {item.estimated_duration}
+                            </span>
                           )}
                         </div>
                       </div>
                     </div>
                     {item.status && (
-                      <span className={`text-[10px] font-bold px-2.5 py-1 rounded-full ${
-                        item.status === 'IN_PROGRESS' ? 'bg-amber-100 text-amber-800 border border-amber-200' : 'bg-blue-100 text-blue-800 border border-blue-200'
-                      }`}>
+                      <span
+                        className={`shrink-0 border px-2 py-0.5 font-mono text-[10px] uppercase tracking-eyebrow ${
+                          item.status === 'IN_PROGRESS'
+                            ? 'border-watch-200 bg-watch-50 text-watch-700'
+                            : 'border-rule bg-paper-sunken text-slate-500'
+                        }`}
+                      >
                         {item.status.replace('_', ' ')}
                       </span>
                     )}
-                  </div>
+                  </li>
                 ))}
-              </div>
+              </ol>
             )}
-          </div>
+          </section>
         </main>
       </div>
 

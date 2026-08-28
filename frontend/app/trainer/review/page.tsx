@@ -3,7 +3,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { Navbar } from '@/components/Navbar';
 import { Sidebar } from '@/components/Sidebar';
-import { CheckCircle2, XCircle, AlertTriangle, FileCheck, Loader2 } from 'lucide-react';
+import { AlertTriangle, Check, Loader2, RefreshCw, X } from 'lucide-react';
 import { apiJson, ApiError } from '@/app/lib/api';
 
 /**
@@ -90,168 +90,206 @@ export default function TrainerReviewPage() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 flex flex-col">
-      <Navbar currentRole="TRAINER" />
+    <div className="flex min-h-screen flex-col bg-paper">
+      <Navbar />
 
       <div className="flex flex-1">
         <Sidebar role="TRAINER" />
 
-        <main className="flex-1 p-6 sm:p-8 max-w-5xl mx-auto space-y-6 w-full">
-          <div className="flex flex-wrap items-start justify-between gap-3">
-            <div>
-              <h1 className="text-2xl font-extrabold text-slate-900">
-                Human-in-the-Loop Question Review
+        <main className="mx-auto w-full max-w-5xl flex-1 px-5 py-8 md:px-8">
+          <header className="flex flex-col justify-between gap-5 border-b-2 border-ink pb-6 md:flex-row md:items-end">
+            <div className="min-w-0">
+              <p className="eyebrow">Trainer tools / review queue</p>
+              <h1 className="mt-2 font-display text-2xl font-semibold tracking-tightest text-ink">
+                Human-in-the-loop question review
               </h1>
-              <p className="text-xs text-slate-500 mt-1">
+              <p className="mt-1.5 max-w-xl text-xs leading-relaxed text-slate-500">
                 Generated MCQs stay PENDING and are never served to officials until a trainer
-                approves them here
+                approves them here.
               </p>
             </div>
-            {!loading && !error && (
-              <div className="bg-amber-100 border border-amber-300 text-amber-800 px-3 py-1.5 rounded-xl text-xs font-mono font-bold flex items-center gap-1.5">
-                <FileCheck className="w-4 h-4" aria-hidden="true" /> {questions.length} Pending Review
-              </div>
-            )}
-          </div>
+
+            <div className="flex shrink-0 items-end gap-5">
+              <button
+                type="button"
+                onClick={loadQueue}
+                disabled={loading}
+                className="inline-flex h-9 items-center gap-1.5 border border-rule-strong bg-white px-3 text-xs font-medium text-ink transition-colors hover:border-ink disabled:opacity-50"
+              >
+                <RefreshCw
+                  className={`h-3.5 w-3.5 ${loading ? 'animate-spin' : ''}`}
+                  aria-hidden="true"
+                />
+                Refresh
+              </button>
+
+              {!loading && !error && (
+                <div>
+                  <p className="eyebrow">Pending review</p>
+                  <p className="mt-1 font-display text-4xl font-semibold text-ink tnum">
+                    {questions.length}
+                  </p>
+                </div>
+              )}
+            </div>
+          </header>
+
+          <div className="mt-8 space-y-8">
 
           {loading && (
             <div
               role="status"
               aria-live="polite"
-              className="bg-white p-8 rounded-3xl border border-slate-200 shadow-sm flex items-center justify-center gap-3 text-sm text-slate-500"
+              className="flex items-center justify-center gap-3 border border-rule bg-white px-5 py-10 text-xs text-slate-500"
             >
-              <Loader2 className="w-4 h-4 animate-spin text-blue-600" aria-hidden="true" />
-              Loading review queue...
+              <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> Loading review queue…
             </div>
           )}
 
           {!loading && error && (
             <div
               role="alert"
-              className="bg-white p-8 rounded-3xl border border-rose-200 shadow-sm text-center space-y-3"
+              className="flex items-start gap-3 border-l-2 border-gap-600 bg-gap-50 px-4 py-3.5"
             >
-              <AlertTriangle className="w-10 h-10 text-rose-600 mx-auto" aria-hidden="true" />
-              <h2 className="text-sm font-bold text-slate-900">Review queue could not be loaded</h2>
-              <p className="text-xs text-rose-700 font-mono break-words">{error}</p>
-              <button
-                type="button"
-                onClick={loadQueue}
-                className="mt-2 px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold shadow transition-colors"
-              >
-                Try again
-              </button>
+              <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-gap-600" aria-hidden="true" />
+              <div className="min-w-0">
+                <h2 className="text-sm font-medium text-ink">Review queue could not be loaded</h2>
+                <p className="mt-1 break-words font-mono text-[11px] text-gap-700">{error}</p>
+                <p className="mt-1.5 text-xs text-gap-700">
+                  No questions are listed, because none were received from the server.
+                </p>
+              </div>
             </div>
           )}
 
           {!loading && !error && questions.length === 0 && (
-            <div className="bg-white p-10 rounded-3xl border border-slate-200 text-center space-y-3">
-              <CheckCircle2 className="w-10 h-10 text-slate-400 mx-auto" aria-hidden="true" />
-              <h2 className="text-sm font-bold text-slate-900">Nothing is waiting for review</h2>
-              <p className="text-xs text-slate-500 max-w-xl mx-auto leading-relaxed">
+            <div className="border border-rule bg-white px-5 py-6">
+              <h2 className="text-sm font-medium text-ink">Nothing is waiting for review</h2>
+              <p className="mt-1 max-w-xl text-xs leading-relaxed text-slate-500">
                 There are no PENDING questions. On a fresh system this is expected: generate MCQs
                 from an uploaded learning material and they will appear here for approval.
               </p>
-              <button
-                type="button"
-                onClick={loadQueue}
-                className="mt-2 px-5 py-2.5 rounded-xl border border-slate-300 text-xs font-bold text-slate-600 hover:bg-slate-100 transition-colors"
-              >
-                Refresh
-              </button>
             </div>
           )}
 
           {!loading && !error && questions.length > 0 && (
-            <div className="space-y-4">
+            <section>
+              <div className="border-b border-ink pb-2.5">
+                <p className="eyebrow">Awaiting decision</p>
+                <p className="mt-1.5 max-w-2xl text-xs leading-relaxed text-slate-500">
+                  A decision is recorded only once the backend confirms it. If a call fails, the
+                  question stays in this queue with the error attached to it.
+                </p>
+              </div>
+              <ol className="m-0 mt-1 list-none p-0">
               {questions.map((q) => {
                 const options = Array.isArray(q.options) ? q.options : [];
                 const busy = pendingAction === q.id;
                 return (
-                  <div
-                    key={q.id}
-                    className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-4"
-                  >
-                    <div className="flex flex-wrap items-center justify-between gap-2">
-                      <span className="text-[10px] font-bold font-mono px-2.5 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-200">
-                        {q.competency_name}
-                      </span>
-                      <div className="flex items-center gap-2">
+                  <li key={q.id} className="border-b border-rule py-5">
+                    <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1.5">
+                      <span className="eyebrow">{q.competency_name}</span>
+                      <div className="flex items-center gap-2.5">
                         {q.difficulty && (
-                          <span className="text-[10px] font-mono uppercase text-slate-500 font-bold">
+                          <span className="font-mono text-[10px] uppercase tracking-eyebrow text-slate-500">
                             Difficulty: {q.difficulty}
                           </span>
                         )}
-                        <span className="text-[10px] font-mono uppercase text-amber-700 font-bold">
+                        <span className="border border-watch-200 bg-watch-50 px-2 py-0.5 font-mono text-[10px] uppercase tracking-eyebrow text-watch-700">
                           {q.review_status}
                         </span>
                       </div>
                     </div>
 
-                    <h2 className="text-sm font-bold text-slate-900">{q.question_text}</h2>
+                    <h2 className="mt-2 text-sm font-medium text-ink">{q.question_text}</h2>
 
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+                    <ul className="m-0 mt-3 grid list-none grid-cols-1 gap-px border border-rule bg-rule p-0 sm:grid-cols-2">
                       {options.map((opt, idx) => (
-                        <div
+                        <li
                           key={idx}
-                          className={`p-3 rounded-xl border ${
+                          className={`px-3 py-2.5 text-xs ${
                             idx === q.correct_option
-                              ? 'bg-emerald-50 border-emerald-300 text-emerald-900 font-bold'
-                              : 'bg-slate-50 border-slate-200 text-slate-700'
+                              ? 'bg-strong-50 font-medium text-strong-800'
+                              : 'bg-white text-slate-600'
                           }`}
                         >
-                          {String.fromCharCode(65 + idx)}. {opt}
+                          <span className="font-mono text-[11px] text-slate-400">
+                            {String.fromCharCode(65 + idx)}.
+                          </span>{' '}
+                          {opt}
                           {idx === q.correct_option && ' (Marked correct)'}
-                        </div>
+                        </li>
                       ))}
-                    </div>
+                    </ul>
 
-                    <div className="text-xs text-slate-500 bg-slate-50 p-3 rounded-xl border border-slate-200">
-                      <strong>Explanation:</strong>{' '}
-                      {q.explanation || (
-                        <span className="text-slate-400">No explanation was recorded.</span>
-                      )}
+                    <div className="mt-3 border-l-2 border-rule-strong bg-paper-sunken px-4 py-3">
+                      <p className="eyebrow">Explanation</p>
+                      <p className="mt-1 text-xs leading-relaxed text-slate-500">
+                        {q.explanation || (
+                          <span className="text-slate-400">No explanation was recorded.</span>
+                        )}
+                      </p>
                     </div>
 
                     {q.source_reference && (
-                      <div className="text-[11px] text-slate-400 font-mono">
+                      <p className="mt-2.5 break-words font-mono text-[11px] text-slate-400">
                         Source: {q.source_reference}
-                      </div>
-                    )}
-
-                    {actionErrors[q.id] && (
-                      <p
-                        role="alert"
-                        className="text-xs text-rose-800 bg-rose-50 border border-rose-200 rounded-xl p-3 font-mono break-words"
-                      >
-                        {actionErrors[q.id]}
                       </p>
                     )}
 
-                    <div className="flex items-center justify-end gap-3 pt-2 border-t border-slate-100">
+                    {actionErrors[q.id] && (
+                      <div
+                        role="alert"
+                        className="mt-3 flex items-start gap-3 border-l-2 border-gap-600 bg-gap-50 px-4 py-3"
+                      >
+                        <AlertTriangle
+                          className="mt-0.5 h-4 w-4 shrink-0 text-gap-600"
+                          aria-hidden="true"
+                        />
+                        <div className="min-w-0">
+                          <p className="break-words font-mono text-[11px] text-gap-700">
+                            {actionErrors[q.id]}
+                          </p>
+                          <p className="mt-1 text-[11px] text-gap-700">
+                            The question was left in the queue.
+                          </p>
+                        </div>
+                      </div>
+                    )}
+
+                    <div className="mt-4 flex items-center justify-end gap-3">
                       <button
                         type="button"
                         onClick={() => handleAction(q.id, 'REJECT')}
                         disabled={busy}
-                        className="px-4 py-2 rounded-xl bg-rose-50 text-rose-700 hover:bg-rose-100 border border-rose-200 text-xs font-bold transition-colors flex items-center gap-1.5 disabled:opacity-50"
+                        className="inline-flex h-9 items-center gap-1.5 border border-gap-600 bg-white px-4 text-xs font-medium text-gap-700 transition-colors hover:bg-gap-50 disabled:opacity-50"
                       >
-                        <XCircle className="w-4 h-4" aria-hidden="true" /> Reject
+                        <X className="h-3.5 w-3.5" aria-hidden="true" /> Reject
                       </button>
                       <button
                         type="button"
                         onClick={() => handleAction(q.id, 'APPROVE')}
                         disabled={busy}
-                        className="px-5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold shadow transition-colors flex items-center gap-1.5 disabled:opacity-50"
+                        className="inline-flex h-9 items-center gap-1.5 border border-navy-600 bg-navy-600 px-4 text-xs font-medium text-paper transition-colors hover:bg-navy-700 disabled:opacity-50"
                       >
-                        <CheckCircle2 className="w-4 h-4" aria-hidden="true" />
-                        {busy ? 'Saving...' : 'Approve & Publish'}
+                        {busy ? (
+                          <>
+                            <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden="true" /> Saving
+                          </>
+                        ) : (
+                          <>
+                            <Check className="h-3.5 w-3.5" aria-hidden="true" /> Approve and publish
+                          </>
+                        )}
                       </button>
                     </div>
-                  </div>
+                  </li>
                 );
               })}
-            </div>
+              </ol>
+            </section>
           )}
-
+          </div>
         </main>
       </div>
     </div>
