@@ -1,11 +1,19 @@
-fastapi>=0.100.0
-uvicorn>=0.22.0
-pydantic>=2.0
-pydantic-settings>=2.0.0
-PyMuPDF>=1.22.0
-openai>=1.0.0
-sqlalchemy>=2.0.0
-python-multipart>=0.0.6
-python-dotenv>=1.0.0
-httpx>=0.24.0
-python-jose[cryptography]>=3.3.0
+fastapi==0.139.0
+uvicorn==0.51.0
+pydantic==2.12.5
+pydantic-settings==2.14.2
+PyMuPDF==1.27.2.3
+# Pinned to what is installed, but note: OpenAIProvider in app/ai/provider.py is
+# written against the 1.x client shape (openai.OpenAI(...) +
+# client.chat.completions.create). 3.x is two majors past that and this path has
+# never been exercised here, because get_ai_provider() returns MockAIProvider
+# whenever DEMO_MODE is set or OPENAI_API_KEY is empty - which is every run so
+# far. If you ever set a real key, expect to adjust provider.py; the constructor
+# and both call sites are wrapped in try/except, so a breaking change degrades to
+# the mock provider instead of erroring, which also means it will fail quietly.
+openai==3.3.1
+sqlalchemy==2.0.44
+python-multipart==0.0.32
+python-dotenv==1.0.1
+httpx==0.28.1
+python-jose[cryptography]==3.5.0
